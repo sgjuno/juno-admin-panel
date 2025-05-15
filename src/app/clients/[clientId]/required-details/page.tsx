@@ -26,8 +26,8 @@ interface DetailRequired {
   id: string;
   prev: string | null;
   questionText?: string;
-  options?: string[] | { [key: string]: string[] | string | null };
-  branchingRule?: { [key: string]: string[] | string };
+  options?: Record<string, string[] | string | null>;
+  branchingRule?: Record<string, string[] | string>;
   next_anyway?: string[];
   extract_only?: boolean;
   extract_externally?: boolean;

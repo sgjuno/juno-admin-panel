@@ -4,13 +4,14 @@ import { use } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { ArrowLeft, Settings, FileText, ListChecks, Link2, Mail, ListPlus, MessageSquare, Clock, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Settings, FileText, ListChecks, Link2, Mail, ListPlus, MessageSquare, Clock, AlertTriangle, GitBranch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const sections = [
   { name: 'Basic Information', path: '', icon: Settings },
   { name: 'Rule Criteria', path: 'rule-criteria', icon: ListChecks },
   { name: 'Required Details', path: 'required-details', icon: FileText },
+  { name: 'Flow Visualizer', path: 'required-details-visualizer', icon: GitBranch },
   { name: 'CRM Integration', path: 'crm', icon: Link2 },
   { name: 'Email Configuration', path: 'email', icon: Mail },
   { name: 'Custom Fields', path: 'custom-fields', icon: ListPlus },

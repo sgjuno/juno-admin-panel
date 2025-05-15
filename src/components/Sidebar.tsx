@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Book, Database, Users, FileText, MessageCircle, Settings, ListChecks, FolderKanban } from 'lucide-react';
+import { Book, Database, Users, FileText, MessageCircle, Settings, ListChecks, FolderKanban, GitBranch } from 'lucide-react';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
@@ -17,8 +17,14 @@ const collections = [
   { name: 'questionStatus', path: '/questionStatus', icon: Book },
 ];
 
+const clientConfigItems = [
+  { name: 'Required Details', path: '/clients/[clientId]/required-details', icon: FileText },
+  { name: 'Flow Visualizer', path: '/clients/[clientId]/required-details-visualizer', icon: GitBranch },
+];
+
 export default function Sidebar() {
   const pathname = usePathname();
+  const isClientConfig = /^\/clients\/[^/]+\//.test(pathname);
 
   return (
     <aside className="h-screen border-r bg-sidebar flex flex-col">
@@ -54,6 +60,36 @@ export default function Sidebar() {
             );
           })}
         </ul>
+
+        {isClientConfig && (
+          <>
+            <div className="mt-6 mb-2 px-3">
+              <h3 className="text-sm font-semibold text-sidebar-foreground">Client Configuration</h3>
+            </div>
+            <ul className="space-y-1">
+              {clientConfigItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname.includes(item.path.replace('[clientId]', pathname.split('/')[2]));
+                return (
+                  <li key={item.path}>
+                    <Link
+                      href={item.path.replace('[clientId]', pathname.split('/')[2])}
+                      className={cn(
+                        'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+                        isActive
+                          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                          : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'
+                      )}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {item.name}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
       </nav>
     </aside>
   );
