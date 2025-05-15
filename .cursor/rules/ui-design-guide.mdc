@@ -1,0 +1,62 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+// Global Design System Guide for Cursor AI
+// This file defines the styling and layout rules for UI generation
+
+// ✅ Libraries to use
+// - Use shadcn/ui components for all buttons, inputs, cards, tabs, modals, etc.
+// - Use Tailwind CSS utility classes for spacing, layout, and visual styling.
+// - Use lucide-react icons for any iconography (e.g., `import { User, Settings } from "lucide-react"`)
+
+// ✅ Layout Guidelines
+// - Use responsive design with `flex`, `grid`, and `container` Tailwind utilities
+// - All layouts should have generous padding (e.g., `p-4`, `p-6`) and spacing (`gap-4` or more)
+// - Prefer `max-w-7xl mx-auto` for main page content wrappers
+
+// ✅ Component Style Rules
+// 1. Cards
+//    - Use `Card`, `CardHeader`, `CardContent` from shadcn
+//    - Apply `rounded-2xl`, `shadow-md`, `border`, `p-4`
+
+// 2. Buttons
+//    - Always use shadcn `Button`
+//    - Include an icon from lucide-react on important action buttons
+//    - Add hover/transition effects: `transition-all hover:scale-[1.02]`
+
+// 3. Forms & Inputs
+//    - Use `Label`, `Input`, `Textarea`, `Select` from shadcn
+//    - Apply consistent spacing: `mb-4`, `space-y-2` within forms
+
+// 4. Navigation
+//    - Use vertical sidebar on left with icons + text
+//    - Use `flex flex-col gap-4` for sidebar items
+//    - Active items should have `bg-muted text-primary font-semibold`
+
+// 5. Tables
+//    - Wrap tables in a `Card`
+//    - Use zebra striping: `odd:bg-muted` rows
+//    - Add a sticky header if needed
+
+// ✅ Typography
+// - Use Tailwind’s `text-lg`, `text-xl`, `font-semibold`, `text-muted-foreground`
+// - Section headings should use `text-xl font-bold mb-2`
+// - Avoid excessive font sizes; balance weight and clarity
+
+// ✅ Animation & Transitions
+// - Add smooth transitions: `transition-all duration-200`
+// - Use hover/focus states on interactive elements
+
+// ✅ Colors
+// - Use Tailwind color tokens and variants (e.g., `text-primary`, `bg-muted`, `border-muted`)
+// - Avoid hardcoded hex colors
+
+// ✅ Icons
+// - Use lucide-react icons with Tailwind sizing (`w-5 h-5`) and spacing (`mr-2`)
+// - Icons should complement text, not replace it
+
+// ✅ Accessibility
+// - All forms should have associated `Label`s
+// - Use `aria-label` or `sr-only` where needed for screen readers

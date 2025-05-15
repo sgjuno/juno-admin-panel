@@ -1,0 +1,80 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+// Design and development rules for Cursor AI while building an admin panel using Next.js
+
+// ✅ FRAMEWORK
+// - Use Next.js with the App Router (`app/` directory)
+// - Use TypeScript with React
+// - Use `shadcn/ui` for components (Cards, Buttons, Inputs, Tabs, Dialogs, etc.)
+// - Use Tailwind CSS for layout, spacing, colors, typography
+// - Use lucide-react for icons
+
+// ✅ PROJECT STRUCTURE
+// - Pages go inside `app/` directory using the app router (`/dashboard`, `/users`, etc.)
+// - Reusable components go in `components/`
+//   - UI wrappers in `components/ui/`
+//   - Feature-specific components in `components/[feature]/`
+// - Use `lib/` for utility files, constants, API helpers
+// - Use `types/` for shared TypeScript types
+
+// ✅ STYLING & COMPONENT RULES
+// - All layout should use Tailwind (`flex`, `grid`, `container`, `gap`, etc.)
+// - Use `max-w-7xl mx-auto` to center main content area
+// - Use `p-4`, `gap-4`, `rounded-2xl`, `shadow-md` for Card styling
+// - Always use shadcn components over raw HTML
+//   - e.g., use `<Button>` from shadcn instead of `<button>`
+//   - Wrap data views in `<Card>` with `<CardHeader>` and `<CardContent>`
+
+// ✅ TYPICAL PAGE LAYOUT
+// Each admin panel page should follow this structure:
+// 1. Page Header (title, breadcrumbs, optional actions)
+// 2. Filter/Search section (if applicable)
+// 3. Main Content (tables, cards, forms)
+// 4. Modals or drawers for secondary actions
+
+// ✅ NAMING CONVENTIONS
+// - Use PascalCase for React components (`UserTable.tsx`)
+// - Use kebab-case for route folders (`/admin-panel`, `/user-profile`)
+// - Use camelCase for functions and variables
+// - Keep file names concise and descriptive
+
+// ✅ ICON USAGE
+// - Use icons from `lucide-react` (`import { Settings, Users } from "lucide-react"`) 
+// - Icons should have Tailwind class `w-5 h-5`
+// - Place icons next to button or nav text, with `mr-2`
+
+// ✅ INTERACTIVITY
+// - Use `useState` and `useEffect` from React where needed
+// - Use shadcn `Dialog`, `Popover`, or `DropdownMenu` for overlays
+// - Implement basic form validation using controlled components
+// - Prefer `react-hook-form` (if forms are complex) in later steps
+
+// ✅ ROUTING
+// - Use the Next.js App Router with `page.tsx` files inside `app/`
+// - Use `layout.tsx` for shared page wrappers (e.g., sidebar + navbar)
+// - Each route segment should have a loading UI and optional error boundary
+
+// ✅ DATA HANDLING
+// - Fetch data via server components or `useEffect` with `fetch` or `axios`
+// - Use `lib/api.ts` for defining fetch functions
+// - Use TypeScript interfaces in `types/` folder to define API shape
+
+// ✅ ACCESSIBILITY
+// - Always use associated `Label` for form inputs
+// - Add `aria-label` to icon-only buttons
+// - Ensure tab order and focus management for dialogs
+
+// ✅ CLEAN CODE PRACTICES
+// - Write readable, modular components — keep each file focused
+// - Extract logic-heavy JSX into components
+// - Use `export default function Page()` only for page.tsx files
+// - Format code using Prettier standards
+
+// ✅ EXTRA
+// - Add skeleton loaders or fallback UI for async content
+// - Use optimistic UI for actions where needed (optional)
+
+// 🟩 All UI must follow the `ui-design-guide.ts` for visual consistency
