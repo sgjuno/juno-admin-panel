@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo, useRef, useLayoutEffect, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useLayoutEffect, useEffect, JSX } from 'react';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Pencil } from 'lucide-react';
 import { DataPointEditDialog } from './required-details/DataPointEditDialog';
+import { Slider } from '@/components/ui/slider';
 
 interface DetailRequired {
   datapoint: string;
@@ -323,20 +324,27 @@ const CategoryColumn = ({ category, details, onNodeClick, highlightedNode, nodeR
   );
 };
 
+interface NodeRefs {
+  [key: string]: React.RefObject<HTMLDivElement>;
+}
+
 export default function DataPointVisualizer({ detailsRequired, clientId }: DataPointVisualizerProps) {
   const [zoom, setZoom] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [highlightedNode, setHighlightedNode] = useState<string | null>(null);
-  const [selectedClient, setSelectedClient] = useState(clientId);
   const [measuredHeights, setMeasuredHeights] = useState<Record<string, number>>({});
   const containerRef = useRef<HTMLDivElement>(null);
-  const nodeRefs = useRef<Record<string, React.RefObject<HTMLDivElement>>>({});
+  const nodeRefs = useRef<NodeRefs>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [legendOpen, setLegendOpen] = useState(false);
   const [showDirect, setShowDirect] = useState(true);
   const [showOptions, setShowOptions] = useState(true);
   const [showNextAnyway, setShowNextAnyway] = useState(true);
   const [showBranching, setShowBranching] = useState(true);
+  const [mouseSensitivity, setMouseSensitivity] = useState(1);
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [scrollPosition, setScrollPosition] = useState({ x: 0, y: 0 });
 
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2));
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.2));
@@ -607,6 +615,68 @@ export default function DataPointVisualizer({ detailsRequired, clientId }: DataP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Object.keys(nodePositions).join(','), scrollContainerRef.current]);
 
+  // Handle touchpad/mouse wheel zoom and pan
+  const handleWheel = useCallback((e: WheelEvent) => {
+    e.preventDefault();
+    
+    // Check if this is a touchpad gesture (deltaMode will be 0)
+    if (e.deltaMode === 0) {
+      // Touchpad gesture
+      if (e.ctrlKey) {
+        // Pinch to zoom
+        const delta = e.deltaY;
+        const zoomFactor = delta > 0 ? 1 - (0.1 * mouseSensitivity) : 1 + (0.1 * mouseSensitivity);
+        const newZoom = Math.min(Math.max(zoom * zoomFactor, 0.2), 2);
+        setZoom(newZoom);
+      } else {
+        // Two finger scroll to pan
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollLeft += e.deltaX * mouseSensitivity;
+          scrollContainerRef.current.scrollTop += e.deltaY * mouseSensitivity;
+        }
+      }
+    } else {
+      // Mouse wheel
+      const delta = e.deltaY;
+      const zoomFactor = delta > 0 ? 1 - (0.1 * mouseSensitivity) : 1 + (0.1 * mouseSensitivity);
+      const newZoom = Math.min(Math.max(zoom * zoomFactor, 0.2), 2);
+      setZoom(newZoom);
+    }
+  }, [zoom, mouseSensitivity]);
+
+  // Handle mouse pan
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button === 1 || (e.button === 0 && e.altKey)) { // Middle click or Alt + Left click
+      setIsPanning(true);
+      setPanStart({ x: e.clientX, y: e.clientY });
+    }
+  }, []);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (isPanning && scrollContainerRef.current) {
+      const dx = (e.clientX - panStart.x) * mouseSensitivity;
+      const dy = (e.clientY - panStart.y) * mouseSensitivity;
+      scrollContainerRef.current.scrollLeft += dx;
+      scrollContainerRef.current.scrollTop += dy;
+      setPanStart({ x: e.clientX, y: e.clientY });
+    }
+  }, [isPanning, panStart, mouseSensitivity]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsPanning(false);
+  }, []);
+
+  // Add wheel event listener with passive: false to allow preventDefault
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener('wheel', handleWheel, { passive: false });
+      return () => {
+        container.removeEventListener('wheel', handleWheel);
+      };
+    }
+  }, [handleWheel]);
+
   return (
     <div className="h-full flex flex-col relative">
       <div className="p-4 border-b flex items-center justify-between gap-4">
@@ -617,15 +687,6 @@ export default function DataPointVisualizer({ detailsRequired, clientId }: DataP
             onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-sm"
           />
-          <Select value={selectedClient} onValueChange={setSelectedClient}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Select client" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={clientId}>Current Client</SelectItem>
-              {/* Add more clients here */}
-            </SelectContent>
-          </Select>
         </div>
         {/* Line toggles */}
         <div className="flex items-center gap-4">
@@ -646,13 +707,27 @@ export default function DataPointVisualizer({ detailsRequired, clientId }: DataP
             <label htmlFor="toggle-branching" className="text-xs">Branching</label>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={handleZoomOut}>
-            <ZoomOut className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="icon" onClick={handleZoomIn}>
-            <ZoomIn className="h-4 w-4" />
-          </Button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label htmlFor="mouse-sensitivity" className="text-xs whitespace-nowrap">Mouse Sensitivity</label>
+            <Slider
+              id="mouse-sensitivity"
+              min={0.1}
+              max={2}
+              step={0.1}
+              value={[mouseSensitivity]}
+              onValueChange={([value]) => setMouseSensitivity(value)}
+              className="w-24"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={handleZoomOut}>
+              <ZoomOut className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={handleZoomIn}>
+              <ZoomIn className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -661,6 +736,10 @@ export default function DataPointVisualizer({ detailsRequired, clientId }: DataP
         ref={scrollContainerRef}
         className="flex-1 overflow-auto bg-background"
         style={{ position: 'relative' }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
       >
         <div
           ref={containerRef}
