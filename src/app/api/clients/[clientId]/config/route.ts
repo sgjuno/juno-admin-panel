@@ -4,11 +4,12 @@ import Client from '@/models/Client';
 
 export async function GET(
   request: Request,
-  { params }: { params: { clientId: string } }
+  context: { params: { clientId: string } }
 ) {
   try {
     await connectDB();
-    const client = await Client.findById(params.clientId).select('detailsRequired');
+    const { clientId } = context.params;
+    const client = await Client.findById(clientId).select('detailsRequired');
     if (!client) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 });
     }
