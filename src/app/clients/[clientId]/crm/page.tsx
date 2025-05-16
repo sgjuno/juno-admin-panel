@@ -13,7 +13,34 @@ import { Settings, RefreshCw, CheckCircle, XCircle, Key, Link2, UserCog, History
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandInput, CommandItem, CommandList, CommandEmpty } from '@/components/ui/command';
 
-const ALL_UNIQUE_CRMS = [
+interface CRM {
+  key: string;
+  label: string;
+}
+
+interface CRMConnection {
+  app: string;
+  isActive: boolean;
+  connectionId?: string;
+  updatedDate?: number;
+  apiKey?: string;
+}
+
+interface CustomField {
+  custom_field_id: string;
+  custom_field_name: string;
+  normilized_field_name: string;
+}
+
+interface Client {
+  companyName: string;
+  unified?: {
+    crm: CRMConnection[];
+  };
+  custom_fields: CustomField[];
+}
+
+const ALL_UNIQUE_CRMS: CRM[] = [
   { key: 'Pipedrive', label: 'Pipedrive' },
   { key: 'Salesforce', label: 'Salesforce' },
   { key: 'Hubspot', label: 'Hubspot' },
@@ -26,9 +53,9 @@ function StatusIndicator({ active }: { active: boolean }) {
   );
 }
 
-export default function CRMIntegrationPage({ params }: { params: Promise<{ clientId: string }> }) {
-  const { clientId } = React.use(params);
-  const [client, setClient] = useState<any>(null);
+export default function CRMIntegrationPage({ params }: { params: { clientId: string } }) {
+  const { clientId } = params;
+  const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Pipedrive');
   const [error, setError] = useState('');
@@ -42,7 +69,7 @@ export default function CRMIntegrationPage({ params }: { params: Promise<{ clien
         const res = await fetch(`/api/clients/${clientId}`);
         const data = await res.json();
         setClient(data);
-      } catch (e) {
+      } catch (error) {
         setError('Failed to load client data');
       }
       setLoading(false);
@@ -60,9 +87,9 @@ export default function CRMIntegrationPage({ params }: { params: Promise<{ clien
   const crmConnections = client.unified?.crm || [];
   const customFields = client.custom_fields || [];
   // Only show CRMs configured for this client
-  const clientCrms = crmConnections.map((c: any) => ALL_UNIQUE_CRMS.find(crm => crm.key === c.app)).filter(Boolean);
+  const clientCrms = crmConnections.map((c) => ALL_UNIQUE_CRMS.find(crm => crm.key === c.app)).filter((crm): crm is CRM => crm !== undefined);
   // For Add CRM dropdown: only show CRMs not already configured
-  const availableCrmsToAdd = ALL_UNIQUE_CRMS.filter(crm => !crmConnections.some((c: any) => c.app === crm.key));
+  const availableCrmsToAdd = ALL_UNIQUE_CRMS.filter(crm => !crmConnections.some((c) => c.app === crm.key));
 
   // Handler for adding a new CRM config (UI only for now)
   function handleAddCrm(crmKey: string) {
@@ -82,9 +109,9 @@ export default function CRMIntegrationPage({ params }: { params: Promise<{ clien
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex items-center gap-2 mb-4">
           <TabsList>
-            {clientCrms.map((crm: { key: string; label: string }) => (
+            {clientCrms.map((crm) => (
               <TabsTrigger key={crm.key} value={crm.key} className="flex items-center gap-2">
-                <StatusIndicator active={!!crmConnections.find((c: any) => c.app === crm.key && c.isActive)} />
+                <StatusIndicator active={!!crmConnections.find((c) => c.app === crm.key && c.isActive)} />
                 {crm.label}
               </TabsTrigger>
             ))}
@@ -109,7 +136,7 @@ export default function CRMIntegrationPage({ params }: { params: Promise<{ clien
           </Popover>
         </div>
         {ALL_UNIQUE_CRMS.map((crm) => {
-          const connection = crmConnections.find((c: any) => c.app === crm.key) || {};
+          const connection = crmConnections.find((c) => c.app === crm.key) as CRMConnection | undefined;
           return (
             <TabsContent key={crm.key} value={crm.key} className="space-y-8">
               {/* Connection & Authentication */}
@@ -119,16 +146,16 @@ export default function CRMIntegrationPage({ params }: { params: Promise<{ clien
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-4">
-                    <StatusIndicator active={!!connection.isActive} />
-                    <span className="font-semibold">{connection.isActive ? 'Active' : 'Inactive'}</span>
-                    <Switch checked={!!connection.isActive} />
-                    <span className="ml-4 text-xs text-muted-foreground">Connection ID: <span className="font-mono">{connection.connectionId || '—'}</span></span>
-                    <span className="ml-4 text-xs text-muted-foreground">Last updated: {connection.updatedDate ? new Date(connection.updatedDate * 1000).toLocaleString() : '—'}</span>
+                    <StatusIndicator active={!!connection?.isActive} />
+                    <span className="font-semibold">{connection?.isActive ? 'Active' : 'Inactive'}</span>
+                    <Switch checked={!!connection?.isActive} />
+                    <span className="ml-4 text-xs text-muted-foreground">Connection ID: <span className="font-mono">{connection?.connectionId || '—'}</span></span>
+                    <span className="ml-4 text-xs text-muted-foreground">Last updated: {connection?.updatedDate ? new Date(connection.updatedDate * 1000).toLocaleString() : '—'}</span>
                   </div>
                   {/* Auth fields */}
                   {crm.key === 'Pipedrive' && (
                     <div className="flex flex-col md:flex-row gap-4 items-center">
-                      <Input className="w-full md:w-96" placeholder="API Key" defaultValue={connection.apiKey || ''} />
+                      <Input className="w-full md:w-96" placeholder="API Key" defaultValue={connection?.apiKey || ''} />
                       <Button variant="outline" className="gap-2"><RefreshCw className="w-4 h-4" /> Test Connection</Button>
                     </div>
                   )}
@@ -142,7 +169,6 @@ export default function CRMIntegrationPage({ params }: { params: Promise<{ clien
                       <Button variant="outline" className="gap-2 col-span-2"><RefreshCw className="w-4 h-4" /> Test Connection</Button>
                     </div>
                   )}
-                  {/* Add similar blocks for Hubspot, Zoho as needed */}
                 </CardContent>
               </Card>
               {/* Field Mapping */}
@@ -172,7 +198,6 @@ export default function CRMIntegrationPage({ params }: { params: Promise<{ clien
                           <td className="p-2"><Input className="w-48" placeholder="CRM Field Name" /></td>
                           <td className="p-2"><Input className="w-32" placeholder="Default Value" /></td>
                         </tr>
-                        {/* Add more rows dynamically */}
                       </tbody>
                     </table>
                   </div>
@@ -189,7 +214,7 @@ export default function CRMIntegrationPage({ params }: { params: Promise<{ clien
                           </tr>
                         </thead>
                         <tbody>
-                          {customFields.map((field: any, idx: number) => (
+                          {customFields.map((field, idx) => (
                             <tr key={field.custom_field_id || idx}>
                               <td className="p-2">{field.custom_field_name}</td>
                               <td className="p-2">{field.normilized_field_name}</td>
@@ -200,7 +225,6 @@ export default function CRMIntegrationPage({ params }: { params: Promise<{ clien
                         </tbody>
                       </table>
                     </div>
-                    <Button variant="outline" className="mt-2"><Plus className="w-4 h-4 mr-2" /> Add Custom Field</Button>
                   </div>
                 </CardContent>
               </Card>
