@@ -6,13 +6,86 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2, Save } from "lucide-react";
+import { Plus, Trash2, Save, Search } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
-function isObject(val: any) {
-  return val && typeof val === "object" && !Array.isArray(val);
-}
+type DetailRequired = {
+  datapoint: string;
+  id: string;
+  questionText?: string;
+  options?: string[] | Record<string, string | string[]>;
+};
+
+type Category = {
+  category: string;
+  detailRequired: DetailRequired[];
+};
+
+type RuleType = "range" | "number" | "array" | "boolean";
+
+type RuleConfig = {
+  type: RuleType;
+  label: string;
+  fields?: string[];
+  fieldLabels?: Record<string, string>;
+  options?: string[];
+};
+
+type RuleValue = {
+  range: { lowerBound: number; upperBound: number };
+  number: { value: number };
+  array: string[];
+  boolean: boolean;
+};
+
+const RULE_TYPES: Record<RuleType, RuleConfig> = {
+  range: {
+    type: "range",
+    label: "Range",
+    fields: ["lowerBound", "upperBound"],
+    fieldLabels: {
+      lowerBound: "Minimum Value",
+      upperBound: "Maximum Value"
+    }
+  },
+  number: {
+    type: "number",
+    label: "Number",
+    fields: ["value"],
+    fieldLabels: {
+      value: "Value"
+    }
+  },
+  array: {
+    type: "array",
+    label: "Array of Values",
+    options: []
+  },
+  boolean: {
+    type: "boolean",
+    label: "Boolean"
+  }
+};
 
 export default function RuleCriteriaPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = use(params);
@@ -22,8 +95,11 @@ export default function RuleCriteriaPage({ params }: { params: Promise<{ clientI
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [newKey, setNewKey] = useState("");
-  const [newType, setNewType] = useState("number");
+  const [selectedDetail, setSelectedDetail] = useState<string>("");
+  const [selectedRuleType, setSelectedRuleType] = useState<RuleType | "">("");
+  const [availableDetails, setAvailableDetails] = useState<DetailRequired[]>([]);
+  const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     setLoading(true);
@@ -32,94 +108,93 @@ export default function RuleCriteriaPage({ params }: { params: Promise<{ clientI
       .then((data) => {
         setClient(data);
         setRuleCriteria(data.ruleCriteria || {});
+        
+        // Extract all available details from the client's detailsRequired
+        const details: DetailRequired[] = [];
+        data.detailsRequired?.forEach((category: Category) => {
+          category.detailRequired.forEach((detail) => {
+            details.push(detail);
+          });
+        });
+        setAvailableDetails(details);
+        
         setLoading(false);
       });
   }, [clientId]);
 
-  const handleValueChange = (key: string, value: any, subkey?: string) => {
+  const handleValueChange = (detailId: string, ruleType: string, value: any, subkey?: string) => {
     setRuleCriteria((prev: any) => {
       const updated = { ...prev };
+      if (!updated[detailId]) {
+        updated[detailId] = {};
+      }
       if (subkey) {
-        updated[key] = { ...updated[key], [subkey]: value };
+        updated[detailId][ruleType] = { ...updated[detailId][ruleType], [subkey]: value };
       } else {
-        updated[key] = value;
+        updated[detailId][ruleType] = value;
       }
       return updated;
     });
   };
 
-  const handleArrayChange = (key: string, idx: number, value: any) => {
-    setRuleCriteria((prev: any) => {
-      const arr = Array.isArray(prev[key]) ? [...prev[key]] : [];
-      arr[idx] = value;
-      return { ...prev, [key]: arr };
-    });
+  const handleArrayChange = (detailId: string, ruleType: string, value: string[]) => {
+    setRuleCriteria((prev: any) => ({
+      ...prev,
+      [detailId]: {
+        ...prev[detailId],
+        [ruleType]: value
+      }
+    }));
   };
 
-  const handleArrayAdd = (key: string) => {
-    setRuleCriteria((prev: any) => {
-      const arr = Array.isArray(prev[key]) ? [...prev[key], ""] : [""];
-      return { ...prev, [key]: arr };
-    });
-  };
-
-  const handleArrayRemove = (key: string, idx: number) => {
-    setRuleCriteria((prev: any) => {
-      const arr = Array.isArray(prev[key]) ? [...prev[key]] : [];
-      arr.splice(idx, 1);
-      return { ...prev, [key]: arr };
-    });
-  };
-
-  const handleRemoveKey = (key: string) => {
+  const handleRemoveRule = (detailId: string, ruleType: string) => {
     setRuleCriteria((prev: any) => {
       const updated = { ...prev };
-      delete updated[key];
+      if (updated[detailId]) {
+        delete updated[detailId][ruleType];
+        if (Object.keys(updated[detailId]).length === 0) {
+          delete updated[detailId];
+        }
+      }
       return updated;
     });
   };
 
-  const handleAddKey = () => {
-    if (!newKey) return;
-    setRuleCriteria((prev: any) => {
-      let value: any = "";
-      if (newType === "number") value = 0;
-      else if (newType === "boolean") value = false;
-      else if (newType === "array") value = [""];
-      else if (newType === "object") value = { subfield: "" };
-      return { ...prev, [newKey]: value };
-    });
-    setNewKey("");
-    setNewType("number");
-  };
+  const handleAddRule = () => {
+    if (!selectedDetail || !selectedRuleType) return;
 
-  const handleObjectFieldChange = (key: string, subkey: string, value: any) => {
-    setRuleCriteria((prev: any) => {
-      return {
+    const detail = availableDetails.find(d => d.id === selectedDetail);
+    if (!detail) return;
+
+    const ruleConfig = RULE_TYPES[selectedRuleType];
+    let initialValue: any;
+
+    switch (ruleConfig.type) {
+      case "range":
+        initialValue = { lowerBound: 0, upperBound: 0 };
+        break;
+      case "number":
+        initialValue = { value: 0 };
+        break;
+      case "array":
+        initialValue = [];
+        break;
+      case "boolean":
+        initialValue = false;
+        break;
+      default:
+        initialValue = "";
+    }
+
+    setRuleCriteria((prev: any) => ({
         ...prev,
-        [key]: {
-          ...prev[key],
-          [subkey]: value,
-        },
-      };
-    });
-  };
-
-  const handleObjectFieldRemove = (key: string, subkey: string) => {
-    setRuleCriteria((prev: any) => {
-      const updated = { ...prev };
-      const obj = { ...updated[key] };
-      delete obj[subkey];
-      updated[key] = obj;
-      return updated;
-    });
-  };
-
-  const handleObjectFieldAdd = (key: string) => {
-    setRuleCriteria((prev: any) => {
-      const obj = { ...prev[key], newField: "" };
-      return { ...prev, [key]: obj };
-    });
+      [selectedDetail]: {
+        ...prev[selectedDetail],
+        [selectedRuleType]: initialValue
+      }
+    }));
+    setSelectedDetail("");
+    setSelectedRuleType("");
   };
 
   const handleSave = async () => {
@@ -138,6 +213,11 @@ export default function RuleCriteriaPage({ params }: { params: Promise<{ clientI
     }
     setSaving(false);
   };
+
+  const filteredDetails = availableDetails.filter(detail => 
+    detail.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (detail.questionText || "").toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (loading) {
     return (
@@ -186,26 +266,71 @@ export default function RuleCriteriaPage({ params }: { params: Promise<{ clientI
       <Card className="rounded-2xl shadow-md border p-4">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
-            <span className="text-lg font-semibold">Edit Rule Criteria</span>
+            <span className="text-lg font-semibold">Add New Rule</span>
             <div className="flex gap-2">
-              <Input
-                placeholder="New key name"
-                value={newKey}
-                onChange={e => setNewKey(e.target.value)}
-                className="w-40"
-              />
-              <select
-                value={newType}
-                onChange={e => setNewType(e.target.value)}
-                className="border rounded px-2 py-1"
+              <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="w-[250px] justify-between"
+                  >
+                    {selectedDetail
+                      ? availableDetails.find((detail) => detail.id === selectedDetail)?.id
+                      : "Select a detail..."}
+                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[250px] p-0">
+                  <Command>
+                    <CommandInput 
+                      placeholder="Search details..." 
+                      value={searchQuery}
+                      onValueChange={setSearchQuery}
+                    />
+                    <CommandEmpty>No details found.</CommandEmpty>
+                    <CommandGroup>
+                      {filteredDetails.map((detail) => (
+                        <CommandItem
+                          key={detail.id}
+                          value={detail.id}
+                          onSelect={(currentValue) => {
+                            setSelectedDetail(currentValue === selectedDetail ? "" : currentValue);
+                            setOpen(false);
+                          }}
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-medium">{detail.id}</span>
+                            {detail.questionText && (
+                              <span className="text-sm text-muted-foreground">{detail.questionText}</span>
+                            )}
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <Select value={selectedRuleType} onValueChange={(value: RuleType) => setSelectedRuleType(value)}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Select rule type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(RULE_TYPES).map(([key, config]) => (
+                    <SelectItem key={key} value={key}>
+                      {config.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleAddRule} 
+                className="gap-2" 
+                disabled={!selectedDetail || !selectedRuleType}
               >
-                <option value="number">Number</option>
-                <option value="boolean">Boolean</option>
-                <option value="array">Array</option>
-                <option value="object">Object</option>
-                <option value="string">String</option>
-              </select>
-              <Button type="button" variant="outline" onClick={handleAddKey} className="gap-2">
                 <Plus className="w-4 h-4" /> Add
               </Button>
             </div>
@@ -215,77 +340,142 @@ export default function RuleCriteriaPage({ params }: { params: Promise<{ clientI
           {(Object.keys(ruleCriteria).length === 0) && (
             <div className="text-muted-foreground">No rule criteria defined.</div>
           )}
-          {(Object.entries(ruleCriteria) as [string, any][]).map(([key, value]) => (
-            <div key={key} className="border rounded-xl p-4 mb-2 bg-muted/50">
-              <div className="flex items-center justify-between mb-2">
-                <Label className="text-base font-semibold">{key}</Label>
-                <Button size="icon" variant="ghost" onClick={() => handleRemoveKey(key)} aria-label="Remove criteria">
-                  <Trash2 className="w-4 h-4 text-destructive" />
-                </Button>
+          {Object.entries(ruleCriteria).map(([detailId, rules]) => {
+            // Try to find the detail in availableDetails
+            const detail = availableDetails.find(d => d.id === detailId);
+            // If not found, fallback to generic label
+            const label = detail ? (
+              <div className="flex flex-col">
+                <Label className="text-base font-semibold">{detail.id}</Label>
+                {detail.questionText && (
+                  <span className="text-sm text-muted-foreground">{detail.questionText}</span>
+                )}
               </div>
-              {/* Render value based on type */}
-              {Array.isArray(value) ? (
-                <div className="space-y-2">
-                  {value.map((item, idx) => (
-                    <div key={idx} className="flex gap-2 items-center">
-                      <Input
-                        value={item}
-                        onChange={e => handleArrayChange(key, idx, e.target.value)}
-                        className="w-64"
-                      />
-                      <Button size="icon" variant="ghost" onClick={() => handleArrayRemove(key, idx)} aria-label="Remove item">
+            ) : (
+              <Label className="text-base font-semibold">{detailId}</Label>
+            );
+
+            return (
+              <div key={detailId} className="border rounded-xl p-4 mb-2 bg-muted/50">
+                <div className="flex items-center justify-between mb-4">
+                  {label}
+                </div>
+                {/* If rules is an object, show each ruleType, else show value directly */}
+                {typeof rules === 'object' && !Array.isArray(rules) && rules !== null ? (
+                  Object.entries(rules).map(([ruleType, value]) => {
+                    const ruleConfig = RULE_TYPES[ruleType as RuleType];
+                    if (!ruleConfig) {
+                      // Fallback for unknown rule types
+                      return (
+                        <div key={ruleType} className="mt-4 p-4 border rounded-lg bg-background">
+                          <div className="flex items-center justify-between mb-2">
+                            <Label className="text-sm font-medium">{ruleType}</Label>
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              onClick={() => handleRemoveRule(detailId, ruleType)} 
+                              aria-label="Remove rule"
+                            >
                         <Trash2 className="w-4 h-4 text-destructive" />
                       </Button>
                     </div>
-                  ))}
-                  <Button type="button" variant="outline" size="sm" onClick={() => handleArrayAdd(key)} className="gap-2 mt-2">
-                    <Plus className="w-4 h-4" /> Add Item
+                          <pre className="text-xs bg-muted p-2 rounded">{JSON.stringify(value, null, 2)}</pre>
+                        </div>
+                      );
+                    }
+                    const typedValue = value as RuleValue[RuleType];
+                    return (
+                      <div key={ruleType} className="mt-4 p-4 border rounded-lg bg-background">
+                        <div className="flex items-center justify-between mb-2">
+                          <Label className="text-sm font-medium">{ruleConfig.label}</Label>
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            onClick={() => handleRemoveRule(detailId, ruleType)} 
+                            aria-label="Remove rule"
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
                   </Button>
                 </div>
-              ) : typeof value === "boolean" ? (
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={value}
-                    onCheckedChange={val => handleValueChange(key, val)}
-                    id={key}
-                  />
-                  <Label htmlFor={key}>{value ? "True" : "False"}</Label>
+                        {ruleConfig.type === "range" && (
+                          <div className="grid grid-cols-2 gap-4">
+                            {ruleConfig.fields?.map((field) => (
+                              <div key={field} className="space-y-2">
+                                <Label>{ruleConfig.fieldLabels?.[field]}</Label>
+                                <Input
+                                  type="number"
+                                  value={(typedValue as RuleValue["range"])[field as keyof RuleValue["range"]] || 0}
+                                  onChange={(e) => handleValueChange(detailId, ruleType, Number(e.target.value), field)}
+                                />
+                              </div>
+                            ))}
                 </div>
-              ) : typeof value === "number" ? (
+                        )}
+                        {ruleConfig.type === "number" && (
+                          <div className="space-y-2">
+                            <Label>{ruleConfig.fieldLabels?.value}</Label>
                 <Input
                   type="number"
-                  value={value}
-                  onChange={e => handleValueChange(key, Number(e.target.value))}
-                  className="w-64"
-                />
-              ) : typeof value === "string" ? (
-                <Input
-                  value={value}
-                  onChange={e => handleValueChange(key, e.target.value)}
-                  className="w-64"
-                />
-              ) : isObject(value) ? (
-                <div className="space-y-2">
-                  {Object.entries(value).map(([subkey, subval]) => (
-                    <div key={subkey} className="flex gap-2 items-center">
-                      <Label className="w-32">{subkey}</Label>
-                      <Input
-                        value={String(subval)}
-                        onChange={e => handleObjectFieldChange(key, subkey, e.target.value)}
-                        className="w-64"
-                      />
-                      <Button size="icon" variant="ghost" onClick={() => handleObjectFieldRemove(key, subkey)} aria-label="Remove field">
+                              value={(typedValue as RuleValue["number"]).value || 0}
+                              onChange={(e) => handleValueChange(detailId, ruleType, Number(e.target.value), "value")}
+                            />
+                          </div>
+                        )}
+                        {ruleConfig.type === "array" && (
+                          <div className="space-y-2">
+                            <Label>Allowed Values</Label>
+                            <div className="flex flex-wrap gap-2">
+                              {(Array.isArray(detail?.options) ? detail.options : Object.keys(detail?.options || {})).map((option) => (
+                                <label key={option} className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={(typedValue as RuleValue["array"]).includes(option)}
+                                    onChange={(e) => {
+                                      const newValue = e.target.checked
+                                        ? [...(typedValue as RuleValue["array"]), option]
+                                        : (typedValue as RuleValue["array"]).filter((v: string) => v !== option);
+                                      handleArrayChange(detailId, ruleType, newValue);
+                                    }}
+                                  />
+                                  <span className="text-sm">{option}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {ruleConfig.type === "boolean" && (
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={typedValue as RuleValue["boolean"]}
+                              onCheckedChange={(val) => handleValueChange(detailId, ruleType, val)}
+                              id={`${detailId}-${ruleType}`}
+                            />
+                            <Label htmlFor={`${detailId}-${ruleType}`}>{(typedValue as RuleValue["boolean"]) ? "Enabled" : "Disabled"}</Label>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  // If rules is not an object, just show its value
+                  <div className="mt-4 p-4 border rounded-lg bg-background">
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className="text-sm font-medium">Value</Label>
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        onClick={() => handleRemoveRule(detailId, "value")} 
+                        aria-label="Remove rule"
+                      >
                         <Trash2 className="w-4 h-4 text-destructive" />
                       </Button>
                     </div>
-                  ))}
-                  <Button type="button" variant="outline" size="sm" onClick={() => handleObjectFieldAdd(key)} className="gap-2 mt-2">
-                    <Plus className="w-4 h-4" /> Add Field
-                  </Button>
+                    <pre className="text-xs bg-muted p-2 rounded">{JSON.stringify(rules, null, 2)}</pre>
                 </div>
-              ) : null}
+                )}
             </div>
-          ))}
+            );
+          })}
         </CardContent>
       </Card>
     </div>

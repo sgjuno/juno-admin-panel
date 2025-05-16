@@ -14,6 +14,8 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Pencil } from 'lucide-react';
 import { DataPointEditDialog } from './required-details/DataPointEditDialog';
+import { useEffect as useIsomorphicLayoutEffect } from 'react';
+import { Slider } from '@/components/ui/slider';
 
 interface DetailRequired {
   datapoint: string;
@@ -55,43 +57,6 @@ const CATEGORY_COLORS = {
   decisionDetails: '#0891B2', // Cyan
 };
 
-// Helper to get all node positions
-function useNodePositions(
-  nodeRefs: React.MutableRefObject<Record<string, React.RefObject<HTMLDivElement>>>,
-  containerRef: React.RefObject<HTMLDivElement>,
-  zoom: number
-) {
-  const [positions, setPositions] = useState<Record<string, { left: number; top: number; width: number; height: number }>>({});
-
-  useLayoutEffect(() => {
-    if (!containerRef.current) return;
-    const containerRect = containerRef.current.getBoundingClientRect();
-    const newPositions: Record<string, { left: number; top: number; width: number; height: number }> = {};
-    Object.entries(nodeRefs.current).forEach(([id, ref]) => {
-      if (ref && ref.current) {
-        const rect = ref.current.getBoundingClientRect();
-        newPositions[id] = {
-          left: (rect.left - containerRect.left) / zoom,
-          top: (rect.top - containerRect.top) / zoom,
-          width: rect.width / zoom,
-          height: rect.height / zoom,
-        };
-      }
-    });
-    setPositions(newPositions);
-  }, [nodeRefs, containerRef, zoom]);
-
-  return positions;
-}
-
-interface DataPointNodeProps {
-  detail: DetailRequired;
-  category: string;
-  onNodeClick: (detail: DetailRequired) => void;
-  isHighlighted: boolean;
-  nodeRef: React.RefObject<HTMLDivElement>;
-}
-
 function OptionsConfigurator({ 
   value, 
   onChange, 
@@ -126,7 +91,7 @@ function OptionsConfigurator({
   );
 }
 
-const DataPointNode = ({ detail, category, onNodeClick, isHighlighted, nodeRef, clientId, refreshData, dataPoints }: DataPointNodeProps & { clientId: string, refreshData: () => void, dataPoints: string[] }) => {
+const DataPointNode = ({ detail, category, onNodeClick, isHighlighted, nodeRef, clientId, refreshData, dataPoints, onLayoutChange }: DataPointNodeProps & { clientId: string, refreshData: () => void, dataPoints: string[], onLayoutChange?: () => void }) => {
   const [editOpen, setEditOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -159,6 +124,7 @@ const DataPointNode = ({ detail, category, onNodeClick, isHighlighted, nodeRef, 
       setSuccess(true);
       setEditOpen(false);
       refreshData();
+      onLayoutChange && onLayoutChange();
     } catch (e: any) {
       setError(e.message || 'Error updating data point');
     } finally {
@@ -313,6 +279,7 @@ const CategoryColumn = ({ category, details, onNodeClick, highlightedNode, nodeR
                   clientId={clientId}
                   refreshData={refreshData}
                   dataPoints={details.map(d => d.id)}
+                  onLayoutChange={() => setLayoutVersion(v => v + 1)}
                 />
               );
             })}
@@ -323,23 +290,146 @@ const CategoryColumn = ({ category, details, onNodeClick, highlightedNode, nodeR
   );
 };
 
+// 1. Add ResizeObserver logic for each card
+function useCardHeights(nodeRefs, filteredCategories, setMeasuredHeights, setAllMeasured) {
+  useEffect(() => {
+    const observers: Record<string, ResizeObserver> = {};
+    const newMeasuredHeights: Record<string, number> = {};
+    let allHaveHeight = true;
+    filteredCategories.forEach(category => {
+      category.detailRequired.forEach(detail => {
+        const ref = nodeRefs.current[detail.id];
+        if (ref && ref.current) {
+          const update = () => {
+            const h = ref.current ? ref.current.offsetHeight : 0;
+            newMeasuredHeights[detail.id] = h;
+            if (!h || h < 40) allHaveHeight = false;
+            setMeasuredHeights(heights => ({ ...heights, [detail.id]: h }));
+            setAllMeasured(Object.values(newMeasuredHeights).every(val => val && val > 40));
+          };
+          observers[detail.id] = new window.ResizeObserver(update);
+          observers[detail.id].observe(ref.current);
+          // Initial measure
+          update();
+        } else {
+          allHaveHeight = false;
+        }
+      });
+    });
+    setAllMeasured(allHaveHeight);
+    return () => {
+      Object.values(observers).forEach(obs => obs.disconnect());
+    };
+  }, [filteredCategories, nodeRefs, setMeasuredHeights, setAllMeasured]);
+}
+
+// 1. Helper to check if all cards have valid heights
+function allCardsMeasured(filteredCategories, measuredHeights) {
+  const missing = [];
+  for (const category of filteredCategories) {
+    for (const detail of category.detailRequired) {
+      const h = measuredHeights[detail.id];
+      if (!h || h < 40) {
+        missing.push(detail.id);
+      }
+    }
+  }
+  if (missing.length > 0) {
+    console.log('Waiting for these cards to be measured:', missing);
+    console.log('Current measuredHeights:', measuredHeights);
+    return false;
+  }
+  return true;
+}
+
 export default function DataPointVisualizer({ detailsRequired, clientId }: DataPointVisualizerProps) {
   const [zoom, setZoom] = useState(1);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [highlightedNode, setHighlightedNode] = useState<string | null>(null);
-  const [selectedClient, setSelectedClient] = useState(clientId);
-  const [measuredHeights, setMeasuredHeights] = useState<Record<string, number>>({});
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef<Record<string, React.RefObject<HTMLDivElement>>>({});
+  const [highlightedNode, setHighlightedNode] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [showDirectDependencies, setShowDirectDependencies] = useState(true);
+  const [showOptionBasedBranching, setShowOptionBasedBranching] = useState(true);
+  const [showNextAnyway, setShowNextAnyway] = useState(true);
+  const [showExtractOnly, setShowExtractOnly] = useState(true);
+  const [showExtractExternally, setShowExtractExternally] = useState(true);
+  const [showDefaultValue, setShowDefaultValue] = useState(true);
+  const [measuredHeights, setMeasuredHeights] = useState<Record<string, number>>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [legendOpen, setLegendOpen] = useState(false);
-  const [showDirect, setShowDirect] = useState(true);
-  const [showOptions, setShowOptions] = useState(true);
-  const [showNextAnyway, setShowNextAnyway] = useState(true);
-  const [showBranching, setShowBranching] = useState(true);
+  const [allMeasured, setAllMeasured] = useState(false);
+  const [layoutVersion, setLayoutVersion] = useState(0);
+  const [sensitivity, setSensitivity] = useState(1);
 
-  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2));
-  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.2));
+  // Handle zoom with trackpad/mouse wheel
+  const handleWheel = useCallback((e: WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const pointXBeforeZoom = (mouseX - position.x) / zoom;
+      const pointYBeforeZoom = (mouseY - position.y) / zoom;
+      const delta = (e.deltaY > 0 ? -0.1 : 0.1) * sensitivity;
+      const newZoom = Math.max(0.2, Math.min(2, zoom + delta));
+      const pointXAfterZoom = (mouseX - position.x) / newZoom;
+      const pointYAfterZoom = (mouseY - position.y) / newZoom;
+      const newPosition = {
+        x: position.x + (pointXAfterZoom - pointXBeforeZoom) * newZoom,
+        y: position.y + (pointYAfterZoom - pointYBeforeZoom) * newZoom
+      };
+      setZoom(newZoom);
+      setPosition(newPosition);
+    } else {
+      e.preventDefault();
+      setPosition(pos => ({
+        x: pos.x - e.deltaX * sensitivity,
+        y: pos.y - e.deltaY * sensitivity
+      }));
+    }
+  }, [zoom, position, sensitivity]);
+
+  // Handle pan with mouse drag
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return; // Only left mouse button
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+  }, [position]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    setPosition({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
+    });
+  }, [isDragging, dragStart]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Add and remove event listeners
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const wheelHandler = (e: WheelEvent) => handleWheel(e);
+    container.addEventListener('wheel', wheelHandler, { passive: false });
+    container.addEventListener('mouseup', handleMouseUp);
+    container.addEventListener('mouseleave', handleMouseUp);
+
+    return () => {
+      container.removeEventListener('wheel', wheelHandler);
+      container.removeEventListener('mouseup', handleMouseUp);
+      container.removeEventListener('mouseleave', handleMouseUp);
+    };
+  }, [handleWheel, handleMouseUp]);
 
   const handleNodeClick = useCallback((detail: DetailRequired) => {
     setHighlightedNode(detail.id);
@@ -354,15 +444,15 @@ export default function DataPointVisualizer({ detailsRequired, clientId }: DataP
   };
 
   const filteredCategories = useMemo(() => {
-    if (!searchTerm) return detailsRequired;
+    if (!searchQuery) return detailsRequired;
     return detailsRequired.map(category => ({
       ...category,
       detailRequired: category.detailRequired.filter(detail =>
-        detail.datapoint.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        detail.questionText?.toLowerCase().includes(searchTerm.toLowerCase())
+        detail.datapoint.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        detail.questionText?.toLowerCase().includes(searchQuery.toLowerCase())
       )
     })).filter(category => category.detailRequired.length > 0);
-  }, [detailsRequired, searchTerm]);
+  }, [detailsRequired, searchQuery]);
 
   // Build a flat map of all nodes by id
   const allNodes: { [id: string]: DetailRequired & { category: string } } = useMemo(() => {
@@ -375,8 +465,23 @@ export default function DataPointVisualizer({ detailsRequired, clientId }: DataP
     return map;
   }, [filteredCategories]);
 
-  // Get node positions (use drag positions if available)
-  const nodePositions = useNodePositions(nodeRefs, containerRef, zoom);
+  // Calculate dynamic y positions for each node in each column
+  const getDynamicPositions = () => {
+    const dynamicPositions: Record<string, { x: number; y: number }> = {};
+    filteredCategories.forEach((category, colIdx) => {
+      let y = 56; // leave space for header
+      category.detailRequired.forEach((detail) => {
+        dynamicPositions[detail.id] = {
+          x: colIdx * 340,
+          y,
+        };
+        const h = measuredHeights[detail.id];
+        y += (h && h > 40 ? h : 100) + 20;
+      });
+    });
+    return dynamicPositions;
+  };
+  const dynamicPositions = getDynamicPositions();
 
   // Build all connections
   interface Connection {
@@ -435,47 +540,46 @@ export default function DataPointVisualizer({ detailsRequired, clientId }: DataP
     return conns;
   }, [allNodes]);
 
-  // SVG lines overlay
+  // SVG lines overlay (use dynamicPositions)
   const renderLines = () => {
-    if (!containerRef.current) return null;
     const lines: JSX.Element[] = [];
     // Calculate SVG bounds
-    const allX = Object.values(nodePositions).flatMap(pos => [pos.left, pos.left + pos.width]);
-    const allY = Object.values(nodePositions).flatMap(pos => [pos.top, pos.top + pos.height]);
+    const allX = Object.values(dynamicPositions).flatMap(pos => [pos.x, pos.x + 300]);
+    const allY = Object.values(dynamicPositions).flatMap(pos => [pos.y, pos.y + 100]);
     const svgWidth = Math.max(1200, ...allX) + 100; // fallback min width
     const svgHeight = Math.max(800, ...allY) + 100; // fallback min height
     connections.forEach((conn, idx) => {
       if (
-        (conn.type === 'prev' && !showDirect) ||
-        (conn.type === 'options' && !showOptions) ||
+        (conn.type === 'prev' && !showDirectDependencies) ||
+        (conn.type === 'options' && !showOptionBasedBranching) ||
         (conn.type === 'next_anyway' && !showNextAnyway) ||
-        (conn.type === 'branching' && !showBranching)
+        (conn.type === 'branching' && !showExtractOnly)
       ) {
         return;
       }
-      const fromPos = nodePositions[conn.from];
-      const toPos = nodePositions[conn.to];
+      const fromPos = dynamicPositions[conn.from];
+      const toPos = dynamicPositions[conn.to];
       if (!fromPos || !toPos) return;
       // Calculate direction
-      const dx = toPos.left + toPos.width / 2 - (fromPos.left + fromPos.width / 2);
-      const dy = toPos.top + toPos.height / 2 - (fromPos.top + fromPos.height / 2);
-      let x1 = fromPos.left + fromPos.width / 2;
-      let y1 = fromPos.top + fromPos.height / 2;
-      let x2 = toPos.left + toPos.width / 2;
-      let y2 = toPos.top + toPos.height / 2;
+      const dx = toPos.x - fromPos.x;
+      const dy = toPos.y - fromPos.y;
+      let x1 = fromPos.x + 150; // center of card (300px width)
+      let y1 = fromPos.y + 50;  // center of card (100px height)
+      let x2 = toPos.x + 150;
+      let y2 = toPos.y + 50;
       // Connect to edge instead of center
       if (Math.abs(dx) > Math.abs(dy)) {
         // Horizontal: connect right edge to left edge
-        x1 = dx > 0 ? fromPos.left + fromPos.width : fromPos.left;
-        y1 = fromPos.top + fromPos.height / 2;
-        x2 = dx > 0 ? toPos.left : toPos.left + toPos.width;
-        y2 = toPos.top + toPos.height / 2;
+        x1 = dx > 0 ? fromPos.x + 300 : fromPos.x;
+        y1 = fromPos.y + 50;
+        x2 = dx > 0 ? toPos.x : toPos.x + 300;
+        y2 = toPos.y + 50;
       } else {
         // Vertical: connect bottom edge to top edge
-        x1 = fromPos.left + fromPos.width / 2;
-        y1 = dy > 0 ? fromPos.top + fromPos.height : fromPos.top;
-        x2 = toPos.left + toPos.width / 2;
-        y2 = dy > 0 ? toPos.top : toPos.top + toPos.height;
+        x1 = fromPos.x + 150;
+        y1 = dy > 0 ? fromPos.y + 100 : fromPos.y;
+        x2 = toPos.x + 150;
+        y2 = dy > 0 ? toPos.y : toPos.y + 100;
       }
       let stroke = '#6366f1';
       let strokeDasharray = '';
@@ -542,53 +646,47 @@ export default function DataPointVisualizer({ detailsRequired, clientId }: DataP
     y: nodeIdx * 120 // 100px card height + 20px gap
   });
 
-  // Dynamic auto-layout for each column
+  // 1. Build a stable dependency string of all card IDs
+  const allCardIds = filteredCategories.flatMap(cat => cat.detailRequired.map(d => d.id)).join(',');
+
+  // 2. useLayoutEffect: keep re-measuring until all heights are valid
   useLayoutEffect(() => {
-    const newMeasuredHeights: Record<string, number> = {};
-    Object.entries(nodeRefs.current).forEach(([id, ref]) => {
-      if (ref && ref.current) {
-        newMeasuredHeights[id] = ref.current.offsetHeight;
-      }
-    });
-    // Only update state if heights have changed
-    const changed = Object.keys(newMeasuredHeights).some(
-      (id) => measuredHeights[id] !== newMeasuredHeights[id]
-    );
-    if (changed) {
-      setMeasuredHeights(newMeasuredHeights);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredCategories, nodePositions]);
-
-  // Calculate dynamic y positions for each node in each column
-  const getDynamicPositions = () => {
-    const dynamicPositions: Record<string, { x: number; y: number }> = {};
-    filteredCategories.forEach((category, colIdx) => {
-      let y = 0;
-      category.detailRequired.forEach((detail) => {
-        dynamicPositions[detail.id] = {
-          x: colIdx * 340,
-          y,
-        };
-        y += (measuredHeights[detail.id] || 100) + 20; // 20px gap
+    let frame: number;
+    function measureAndCheck() {
+      const newMeasuredHeights: Record<string, number> = {};
+      let allHaveHeight = true;
+      Object.entries(nodeRefs.current).forEach(([id, ref]) => {
+        if (ref && ref.current) {
+          const h = ref.current.offsetHeight;
+          newMeasuredHeights[id] = h;
+          if (!h || h < 40) allHaveHeight = false;
+        } else {
+          allHaveHeight = false;
+        }
       });
-    });
-    return dynamicPositions;
-  };
-  const dynamicPositions = getDynamicPositions();
-
-  // Add a stub for refreshData
-  const refreshData = () => {
-    // TODO: Implement data refresh logic
-  };
+      const changed = Object.keys(newMeasuredHeights).some(
+        (id) => measuredHeights[id] !== newMeasuredHeights[id]
+      );
+      if (changed) {
+        setMeasuredHeights(newMeasuredHeights);
+      }
+      setAllMeasured(allHaveHeight);
+      if (!allHaveHeight) {
+        frame = requestAnimationFrame(measureAndCheck);
+      }
+    }
+    frame = requestAnimationFrame(measureAndCheck);
+    return () => cancelAnimationFrame(frame);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allCardIds, measuredHeights, layoutVersion]);
 
   // Auto-zoom to fit all nodes on first load
   useEffect(() => {
     // Only auto-zoom if there are nodes and a scroll container
-    if (!scrollContainerRef.current || Object.keys(nodePositions).length === 0) return;
+    if (!scrollContainerRef.current || Object.keys(dynamicPositions).length === 0) return;
     const container = scrollContainerRef.current;
-    const allX = Object.values(nodePositions).flatMap(pos => [pos.left, pos.left + pos.width]);
-    const allY = Object.values(nodePositions).flatMap(pos => [pos.top, pos.top + pos.height]);
+    const allX = Object.values(dynamicPositions).flatMap(pos => [pos.x, pos.x + 300]);
+    const allY = Object.values(dynamicPositions).flatMap(pos => [pos.y, pos.y + 100]);
     const minX = Math.min(...allX);
     const maxX = Math.max(...allX);
     const minY = Math.min(...allY);
@@ -605,36 +703,56 @@ export default function DataPointVisualizer({ detailsRequired, clientId }: DataP
     }
     // Only run on first load or when node positions change
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [Object.keys(nodePositions).join(','), scrollContainerRef.current]);
+  }, [Object.keys(dynamicPositions).join(','), scrollContainerRef.current]);
+
+  // Add a stub for refreshData
+  const refreshData = () => {
+    // TODO: Implement data refresh logic
+  };
+
+  // 1. Add ResizeObserver logic for each card
+  useCardHeights(nodeRefs, filteredCategories, setMeasuredHeights, setAllMeasured);
+
+  const layoutReady = allCardsMeasured(filteredCategories, measuredHeights);
+
+  // 2. Measurement phase: render all cards in a hidden container, measure, then show layout
+  useEffect(() => {
+    if (allCardsMeasured(filteredCategories, measuredHeights)) {
+      setAllMeasured(true);
+    } else {
+      setAllMeasured(false);
+    }
+  }, [filteredCategories, measuredHeights]);
 
   return (
-    <div className="h-full flex flex-col relative">
+    <div className="flex flex-col h-full">
       <div className="p-4 border-b flex items-center justify-between gap-4">
         <div className="flex items-center gap-4 flex-1">
           <Input
             placeholder="Search data points..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="max-w-sm"
           />
-          <Select value={selectedClient} onValueChange={setSelectedClient}>
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
             <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Select client" />
+              <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={clientId}>Current Client</SelectItem>
-              {/* Add more clients here */}
+              <SelectItem value="all">All Categories</SelectItem>
+              {detailsRequired.map(category => (
+                <SelectItem key={category.category} value={category.category}>{category.category}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
-        {/* Line toggles */}
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <Switch id="toggle-direct" checked={showDirect} onCheckedChange={setShowDirect} />
+            <Switch id="toggle-direct" checked={showDirectDependencies} onCheckedChange={setShowDirectDependencies} />
             <label htmlFor="toggle-direct" className="text-xs">Direct</label>
           </div>
           <div className="flex items-center gap-2">
-            <Switch id="toggle-options" checked={showOptions} onCheckedChange={setShowOptions} />
+            <Switch id="toggle-options" checked={showOptionBasedBranching} onCheckedChange={setShowOptionBasedBranching} />
             <label htmlFor="toggle-options" className="text-xs">Options</label>
           </div>
           <div className="flex items-center gap-2">
@@ -642,51 +760,166 @@ export default function DataPointVisualizer({ detailsRequired, clientId }: DataP
             <label htmlFor="toggle-nextanyway" className="text-xs">Next Anyway</label>
           </div>
           <div className="flex items-center gap-2">
-            <Switch id="toggle-branching" checked={showBranching} onCheckedChange={setShowBranching} />
+            <Switch id="toggle-branching" checked={showExtractOnly} onCheckedChange={setShowExtractOnly} />
             <label htmlFor="toggle-branching" className="text-xs">Branching</label>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs">Sensitivity</span>
+            <Slider
+              min={0.5}
+              max={3}
+              step={0.1}
+              value={[sensitivity]}
+              onValueChange={([v]) => setSensitivity(v)}
+              className="w-32"
+            />
+            <span className="text-xs w-8 text-right">{sensitivity.toFixed(1)}x</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={handleZoomOut}>
+          <Button variant="outline" size="icon" onClick={() => setZoom(Math.max(0.2, zoom - 0.1))}>
             <ZoomOut className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={handleZoomIn}>
+          <Button variant="outline" size="icon" onClick={() => setZoom(Math.min(2, zoom + 0.1))}>
             <ZoomIn className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
       {/* Custom scrollable canvas with panning */}
-      <div
-        ref={scrollContainerRef}
-        className="flex-1 overflow-auto bg-background"
-        style={{ position: 'relative' }}
+      <div 
+        ref={containerRef}
+        className="relative flex-1 overflow-hidden bg-background"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
       >
         <div
-          ref={containerRef}
-          className="relative p-8"
+          className="absolute"
           style={{
-            minWidth: 2000,
-            minHeight: 1500,
-            transform: `scale(${zoom})`,
+            transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
             transformOrigin: 'top left',
+            transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+            width: 'max-content',
+            height: 'max-content',
           }}
           onClick={handleCanvasClick}
         >
           {renderLines()}
-          <div className="flex gap-8 relative z-10">
-            {filteredCategories.map((category, colIdx) => (
-              <CategoryColumn
-                key={category.category}
-                category={category}
-                details={category.detailRequired}
-                onNodeClick={handleNodeClick}
-                highlightedNode={highlightedNode}
-                nodeRefs={nodeRefs}
-                clientId={clientId}
-                refreshData={refreshData}
-              />
-            ))}
+          <div className="relative z-10">
+            {filteredCategories.map((category, colIdx) => {
+              const x = colIdx * 340;
+              return (
+                <div
+                  key={category.category + '-header'}
+                  style={{
+                    position: 'absolute',
+                    left: x,
+                    top: 0,
+                    width: 300,
+                    height: 48,
+                    zIndex: 20,
+                    background: 'rgba(255,255,255,0.85)',
+                    padding: '8px 16px',
+                    borderRadius: '16px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                    border: `2px solid ${CATEGORY_COLORS[category.category as keyof typeof CATEGORY_COLORS]}20`,
+                    fontWeight: 600,
+                    fontSize: '1rem',
+                    marginBottom: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  {category.category}
+                </div>
+              );
+            })}
+            {!allMeasured && (
+              <>
+                {/* Hidden measurement container */}
+                <div style={{ position: 'absolute', left: -9999, top: 0, visibility: 'hidden', pointerEvents: 'none' }}>
+                  {filteredCategories.map((category, colIdx) => (
+                    <div key={category.category + '-measure'}>
+                      {category.detailRequired.map((detail) => {
+                        if (!nodeRefs.current[detail.id]) {
+                          nodeRefs.current[detail.id] = React.createRef<HTMLDivElement>();
+                        }
+                        return (
+                          <div
+                            key={detail.id}
+                            ref={el => {
+                              nodeRefs.current[detail.id].current = el;
+                              if (el) {
+                                const h = el.offsetHeight;
+                                setMeasuredHeights(heights =>
+                                  heights[detail.id] !== h ? { ...heights, [detail.id]: h } : heights
+                                );
+                              }
+                            }}
+                            style={{ width: 300, marginBottom: 20 }}
+                          >
+                            <DataPointNode
+                              detail={detail}
+                              category={category.category}
+                              onNodeClick={() => {}}
+                              isHighlighted={false}
+                              nodeRef={nodeRefs.current[detail.id]}
+                              clientId={clientId}
+                              refreshData={() => {}}
+                              dataPoints={category.detailRequired.map(d => d.id)}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+                {/* Loading overlay */}
+                <div className="absolute inset-0 flex items-center justify-center z-50 bg-background/60">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" />
+                  <span className="ml-4 text-primary font-semibold">Measuring layout…</span>
+                </div>
+              </>
+            )}
+            {allMeasured && (
+              filteredCategories.map((category, colIdx) => (
+                <React.Fragment key={category.category}>
+                  {category.detailRequired.map((detail, nodeIdx) => {
+                    const pos = dynamicPositions[detail.id];
+                    if (!pos) return null;
+                    if (!nodeRefs.current[detail.id]) {
+                      nodeRefs.current[detail.id] = React.createRef<HTMLDivElement>();
+                    }
+                    return (
+                      <div
+                        key={detail.id}
+                        ref={nodeRefs.current[detail.id]}
+                        style={{
+                          position: 'absolute',
+                          left: pos.x,
+                          top: pos.y,
+                          width: 300,
+                          height: measuredHeights[detail.id] || 100,
+                        }}
+                      >
+                        <DataPointNode
+                          detail={detail}
+                          category={category.category}
+                          onNodeClick={handleNodeClick}
+                          isHighlighted={highlightedNode === detail.id}
+                          nodeRef={nodeRefs.current[detail.id]}
+                          clientId={clientId}
+                          refreshData={refreshData}
+                          dataPoints={category.detailRequired.map(d => d.id)}
+                          onLayoutChange={() => setLayoutVersion(v => v + 1)}
+                        />
+                      </div>
+                    );
+                  })}
+                </React.Fragment>
+              ))
+            )}
           </div>
         </div>
         {/* Floating Legend Button & Card */}
