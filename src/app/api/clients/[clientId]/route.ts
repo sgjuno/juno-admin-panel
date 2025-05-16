@@ -15,12 +15,19 @@ export async function GET(request: NextRequest, { params }: { params: { clientId
 export async function PUT(request: NextRequest, { params }: { params: { clientId: string } }) {
   await connectDB();
   const { clientId } = params;
-  const data = await request.json();
-  const client = await Client.findByIdAndUpdate(clientId, data, { new: true });
-  if (!client) {
-    return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+  let data;
+  try {
+    data = await request.json();
+    console.log('Incoming PUT /api/clients/[clientId] data:', data);
+    const client = await Client.findByIdAndUpdate(clientId, { $set: data }, { new: true });
+    if (!client) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    }
+    return NextResponse.json(client);
+  } catch (error) {
+    console.error('Error updating client:', error);
+    return NextResponse.json({ error: 'Failed to update client', details: error instanceof Error ? error.message : error }, { status: 400 });
   }
-  return NextResponse.json(client);
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { clientId: string } }) {
