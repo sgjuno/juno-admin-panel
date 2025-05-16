@@ -18,8 +18,18 @@ const collections = [
 ];
 
 const clientConfigItems = [
-  { name: 'Required Details', path: '/clients/[clientId]/required-details', icon: FileText },
-  { name: 'Flow Visualizer', path: '/clients/[clientId]/required-details-visualizer', icon: GitBranch },
+  {
+    name: 'Required Details',
+    path: '/clients/[clientId]/required-details',
+    icon: FileText,
+    subTabs: [
+      {
+        name: 'Data Points Required',
+        path: '/clients/[clientId]/data-points-required',
+        icon: GitBranch,
+      },
+    ],
+  },
 ];
 
 export default function Sidebar() {
@@ -84,6 +94,31 @@ export default function Sidebar() {
                       <Icon className="w-4 h-4" />
                       {item.name}
                     </Link>
+                    {/* Sub-tabs */}
+                    {item.subTabs && (
+                      <ul className="ml-8 mt-1 space-y-1">
+                        {item.subTabs.map((sub) => {
+                          const SubIcon = sub.icon;
+                          const subActive = pathname.includes(sub.path.replace('[clientId]', pathname.split('/')[2]));
+                          return (
+                            <li key={sub.path}>
+                              <Link
+                                href={sub.path.replace('[clientId]', pathname.split('/')[2])}
+                                className={cn(
+                                  'flex items-center gap-2 px-3 py-1 rounded-md text-sm transition-colors',
+                                  subActive
+                                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                                    : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'
+                                )}
+                              >
+                                <SubIcon className="w-4 h-4" />
+                                {sub.name}
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
                   </li>
                 );
               })}

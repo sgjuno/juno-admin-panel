@@ -4,14 +4,16 @@ import { use } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { ArrowLeft, Settings, FileText, ListChecks, Link2, Mail, ListPlus, MessageSquare, Clock, AlertTriangle, GitBranch } from 'lucide-react';
+import { ArrowLeft, Settings, FileText, ListChecks, Link2, Mail, ListPlus, MessageSquare, Clock, AlertTriangle, GitBranch, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const sections = [
+  { name: 'Overview', path: '', icon: Home },
   { name: 'Basic Information', path: '', icon: Settings },
   { name: 'Rule Criteria', path: 'rule-criteria', icon: ListChecks },
   { name: 'Required Details', path: 'required-details', icon: FileText },
-  { name: 'Flow Visualizer', path: 'required-details-visualizer', icon: GitBranch },
+  { name: 'Data Points', path: 'data-points', icon: GitBranch },
+  { name: 'Documents', path: 'documents', icon: FileText },
   { name: 'CRM Integration', path: 'crm', icon: Link2 },
   { name: 'Email Configuration', path: 'email', icon: Mail },
   { name: 'Custom Fields', path: 'custom-fields', icon: ListPlus },
@@ -33,8 +35,8 @@ export default function ClientLayout({
   const base = `/clients/${clientId}`;
 
   return (
-    <div className="flex min-h-screen">
-      <div className="w-64 border-r bg-sidebar">
+    <div className="flex min-h-screen h-screen">
+      <div className="w-64 border-r bg-sidebar h-full overflow-y-auto">
         <div className="p-6">
           <Link href="/clients" className="mb-4 w-full">
             <Button variant="ghost" className="w-full justify-start gap-2" aria-label="Back to Clients">
@@ -69,7 +71,7 @@ export default function ClientLayout({
           </nav>
         </div>
       </div>
-      <main className="flex-1 bg-background">{children}</main>
+      <main className="flex-1 h-full overflow-auto bg-background">{children}</main>
     </div>
   );
 } 
