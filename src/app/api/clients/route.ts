@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Client from '@/models/Client';
 
+interface ClientError extends Error {
+  code?: number;
+  keyPattern?: Record<string, unknown>;
+}
+
 export async function GET() {
   await connectDB();
   const clients = await Client.find({}).sort({ createdAt: -1 });
@@ -21,10 +26,14 @@ export async function POST(request: Request) {
     
     const client = await Client.create(data);
     return NextResponse.json(client, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
+    const clientError = error as ClientError;
+    const errorMessage = clientError.message || 'Error creating client';
+    const status = clientError.code === 11000 ? 409 : 400; // 409 for duplicate key errors
+    
     return NextResponse.json(
-      { error: error.message || 'Error creating client' },
-      { status: 400 }
+      { error: errorMessage },
+      { status }
     );
   }
 } 
