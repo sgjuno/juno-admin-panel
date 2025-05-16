@@ -1,14 +1,20 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Client from '@/models/Client';
 
+interface RouteContext {
+  params: {
+    clientId: string;
+  };
+}
+
 export async function GET(
-  request: Request,
-  context: { params: { clientId: string } }
+  request: NextRequest,
+  { params }: RouteContext
 ) {
   try {
     await connectDB();
-    const { clientId } = context.params;
+    const { clientId } = params;
     const client = await Client.findById(clientId).select('detailsRequired');
     if (!client) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 });

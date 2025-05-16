@@ -1,9 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has ESLint errors.
-    ignoreDuringBuilds: true,
+    // Only ignore ESLint errors in production builds
+    ignoreDuringBuilds: process.env.NODE_ENV === 'production',
   },
 }
 
