@@ -2,6 +2,7 @@ import { use } from 'react';
 import DataPointVisualizer from '@/components/DataPointVisualizer';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import React from 'react';
 
 interface ClientConfig {
   detailsRequired: Array<{
@@ -38,9 +39,9 @@ async function getClientConfig(clientId: string): Promise<ClientConfig> {
   return response.json();
 }
 
-export default function DataPointsPage({ params }: { params: { clientId: string } }) {
-  const { clientId } = params;
-  const clientConfig = use(getClientConfig(clientId));
+export default async function DataPointsPage({ params }: { params: Promise<{ clientId: string }> }) {
+  const { clientId } = await React.use(params);
+  const clientConfig = await getClientConfig(clientId);
 
   if (!clientConfig) {
     return (

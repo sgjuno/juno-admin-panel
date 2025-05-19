@@ -7,8 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Save, Settings } from 'lucide-react';
 
-export default function ResponsePromptsPage({ params }: { params: { clientId: string } }) {
-  const { clientId } = params;
+export default function ResponsePromptsPage({ params }: { params: Promise<{ clientId: string }> }) {
+  const { clientId } = React.use(params);
   const [client, setClient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { use, useEffect, useState, useMemo } from 'react';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,8 +44,8 @@ interface Category {
 }
 
 interface DataPointComboboxProps {
-  value: string | null | undefined;
-  onChange: (value: string | null) => void;
+  value: string | string[] | null | undefined;
+  onChange: (value: string | string[] | null) => void;
   placeholder: string;
   dataPoints: string[];
   currentDatapointId: string;
@@ -66,8 +67,11 @@ function DataPointCombobox({
   const [open, setOpen] = useState(false);
 
   // Support multi-select display for array values
-  const isMulti = Array.isArray(value);
-  const selectedValues = isMulti ? value : value ? [value] : [];
+  const selectedValues: string[] = Array.isArray(value)
+    ? value
+    : typeof value === 'string' && value
+      ? [value]
+      : [];
   const maxVisible = 4;
   const visibleSelections = selectedValues.slice(0, maxVisible);
   const hiddenSelections = selectedValues.slice(maxVisible);
@@ -133,12 +137,9 @@ function DataPointCombobox({
                     key={datapoint}
                     value={datapoint}
                     onSelect={() => {
-                      if (isMulti) {
+                      if (selectedValues.includes(datapoint)) {
                         // Toggle selection
-                        const exists = selectedValues.includes(datapoint);
-                        const newVals = exists
-                          ? selectedValues.filter((v) => v !== datapoint)
-                          : [...selectedValues, datapoint];
+                        const newVals = selectedValues.filter((v) => v !== datapoint);
                         onChange(newVals);
                       } else {
                         onChange(datapoint);
@@ -332,8 +333,18 @@ function OptionsConfigurator({
               <div className="pl-4 space-y-2">
                 <Label className="text-sm text-muted-foreground">Next Data Points:</Label>
                 <DataPointCombobox
-                  value={Array.isArray(values) ? values.join(', ') : ''}
-                  onChange={(value) => handleMappingOptionChange(key, key, value ? value.split(', ') : [])}
+                  value={Array.isArray(values) ? values : typeof values === 'string' && values ? [values] : []}
+                  onChange={(value) =>
+                    handleMappingOptionChange(
+                      key,
+                      key,
+                      Array.isArray(value)
+                        ? value
+                        : typeof value === 'string' && value
+                        ? value.split(', ')
+                        : []
+                    )
+                  }
                   placeholder="Select data points"
                   dataPoints={dataPoints}
                   currentDatapointId=""
@@ -367,8 +378,18 @@ function OptionsConfigurator({
               <div className="pl-4 space-y-2">
                 <Label className="text-sm text-muted-foreground">Next Data Points:</Label>
                 <DataPointCombobox
-                  value={Array.isArray(values) ? values.join(', ') : ''}
-                  onChange={(value) => handleNumericOptionChange(key, key, value ? value.split(', ') : [])}
+                  value={Array.isArray(values) ? values : typeof values === 'string' && values ? [values] : []}
+                  onChange={(value) =>
+                    handleNumericOptionChange(
+                      key,
+                      key,
+                      Array.isArray(value)
+                        ? value
+                        : typeof value === 'string' && value
+                        ? value.split(', ')
+                        : []
+                    )
+                  }
                   placeholder="Select data points"
                   dataPoints={dataPoints}
                   currentDatapointId=""
@@ -392,8 +413,18 @@ function OptionsConfigurator({
                 />
                 <ArrowRight className="w-4 h-4 self-center" />
                 <DataPointCombobox
-                  value={value}
-                  onChange={(newValue) => handleComplexOptionChange(key, key, newValue || '')}
+                  value={Array.isArray(value) ? value : typeof value === 'string' && value ? [value] : []}
+                  onChange={(newValue) =>
+                    handleComplexOptionChange(
+                      key,
+                      key,
+                      Array.isArray(newValue)
+                        ? newValue[0] || ''
+                        : typeof newValue === 'string'
+                        ? newValue
+                        : ''
+                    )
+                  }
                   placeholder="Select data point"
                   dataPoints={dataPoints}
                   currentDatapointId=""
@@ -441,7 +472,7 @@ function renderSelectedFields(valueArray: string[]) {
   );
 }
 
-function renderSelectedFieldsTable(selectedFields: string[], setSelectedFields: (fields: string[]) => void): JSX.Element | null {
+function renderSelectedFieldsTable(selectedFields: string[], setSelectedFields: (fields: string[]) => void): React.ReactElement | null {
   if (selectedFields.length === 0) return null;
   return (
     <div className="mb-2">
@@ -516,7 +547,7 @@ function BranchingRuleConfigurator({
   // Open dialog for a specific rule key
   const openFieldDialog = (key: string, values: string[] | string) => {
     setCurrentKey(key);
-    setSelectedFields(Array.isArray(values) ? values : values ? [values] : []);
+    setSelectedFields(Array.isArray(values) ? values : typeof values === 'string' && values ? [values] : []);
     setDialogOpen(true);
   };
 
@@ -613,7 +644,7 @@ function BranchingRuleConfigurator({
 }
 
 export default function RequiredDetailsPage({ params }: { params: Promise<{ clientId: string }> }) {
-  const { clientId } = use(params);
+  const { clientId } = React.use(params);
   const [client, setClient] = useState<any>(null);
   const [detailsRequired, setDetailsRequired] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);

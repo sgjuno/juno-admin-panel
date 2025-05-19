@@ -301,7 +301,7 @@ const CategoryColumn = ({ category, details, onNodeClick, highlightedNode, nodeR
           >
             {details.map((detail) => {
               if (!nodeRefs.current[detail.id]) {
-                nodeRefs.current[detail.id] = React.createRef<HTMLDivElement>();
+                nodeRefs.current[detail.id] = React.createRef() as React.RefObject<HTMLDivElement>;
               }
               return (
                 <DataPointNode
@@ -324,17 +324,13 @@ const CategoryColumn = ({ category, details, onNodeClick, highlightedNode, nodeR
   );
 };
 
-interface NodeRefs {
-  [key: string]: React.RefObject<HTMLDivElement>;
-}
-
 export default function DataPointVisualizer({ detailsRequired, clientId }: DataPointVisualizerProps) {
   const [zoom, setZoom] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [highlightedNode, setHighlightedNode] = useState<string | null>(null);
   const [measuredHeights, setMeasuredHeights] = useState<Record<string, number>>({});
-  const containerRef = useRef<HTMLDivElement>(null);
-  const nodeRefs = useRef<NodeRefs>({});
+  const containerRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLDivElement>;
+  const nodeRefs = useRef<Record<string, React.RefObject<HTMLDivElement>>>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [legendOpen, setLegendOpen] = useState(false);
   const [showDirect, setShowDirect] = useState(true);

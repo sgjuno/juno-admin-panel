@@ -1,5 +1,6 @@
 "use client";
 
+import React from 'react';
 import { use, useEffect, useState } from "react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ function isObject(val: any) {
 }
 
 export default function RuleCriteriaPage({ params }: { params: Promise<{ clientId: string }> }) {
-  const { clientId } = use(params);
+  const { clientId } = React.use(params);
   const [client, setClient] = useState<any>(null);
   const [ruleCriteria, setRuleCriteria] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);

@@ -1,3 +1,4 @@
+import React from 'react';
 import connectDB from '@/lib/mongodb';
 import Client from '@/models/Client';
 
@@ -7,8 +8,8 @@ async function getClientCustomFields(clientId: string) {
   return JSON.parse(JSON.stringify(client));
 }
 
-export default async function CustomFieldsPage({ params }: { params: { clientId: string } }) {
-  const { clientId } = params;
+export default async function CustomFieldsPage({ params }: { params: Promise<{ clientId: string }> }) {
+  const { clientId } = await React.use(params);
   const client = await getClientCustomFields(clientId);
 
   if (!client) {

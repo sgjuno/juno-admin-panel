@@ -6,7 +6,7 @@ import { Separator } from '@/components/ui/separator';
 import { ArrowRight, Trash2, Plus } from 'lucide-react';
 import { DataPointCombobox } from './DataPointCombobox';
 
-function renderSelectedFields(valueArray: string[], setSelectedFields: (fields: string[]) => void): JSX.Element | null {
+function renderSelectedFields(valueArray: string[], setSelectedFields: (fields: string[]) => void): React.ReactElement | null {
   if (!valueArray.length) return null;
   return (
     <div className="flex flex-wrap gap-2 mb-2">

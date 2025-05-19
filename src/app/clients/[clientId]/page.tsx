@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { use, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -23,8 +24,8 @@ interface Client {
   country: string;
 }
 
-export default function ClientBasicInfoPage({ params }: { params: { clientId: string } }) {
-  const { clientId } = params;
+export default function ClientBasicInfoPage({ params }: { params: Promise<{ clientId: string }> }) {
+  const { clientId } = React.use(params);
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
