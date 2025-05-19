@@ -20,8 +20,8 @@ const FEATURE_FLAGS = [
   { key: 'linkExtraction', label: 'Link Extraction' },
 ];
 
-export default function FeatureFlagsPage({ params }: { params: Promise<{ clientId: string }> }) {
-  const { clientId } = React.use(params);
+export default function FeatureFlagsPage({ params }: { params: { clientId: string } }) {
+  const { clientId } = params;
   const [client, setClient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

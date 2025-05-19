@@ -8,8 +8,8 @@ import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Save, RefreshCw, Plus, Trash2 } from 'lucide-react';
 
-export default function FollowUpPage({ params }: { params: Promise<{ clientId: string }> }) {
-  const { clientId } = React.use(params);
+export default function FollowUpPage({ params }: { params: { clientId: string } }) {
+  const { clientId } = params;
   const [client, setClient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

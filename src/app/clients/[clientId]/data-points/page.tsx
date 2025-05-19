@@ -38,8 +38,8 @@ async function getClientConfig(clientId: string): Promise<ClientConfig> {
   return response.json();
 }
 
-export default function DataPointsPage({ params }: { params: Promise<{ clientId: string }> }) {
-  const { clientId } = use(params);
+export default function DataPointsPage({ params }: { params: { clientId: string } }) {
+  const { clientId } = params;
   const clientConfig = use(getClientConfig(clientId));
 
   if (!clientConfig) {

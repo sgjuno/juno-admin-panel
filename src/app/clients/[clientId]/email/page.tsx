@@ -12,8 +12,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Trash2, Save, Mail, Settings, RefreshCw, Shield, ChevronRight } from 'lucide-react';
 
-export default function EmailConfigPage({ params }: { params: Promise<{ clientId: string }> }) {
-  const { clientId } = React.use(params);
+export default function EmailConfigPage({ params }: { params: { clientId: string } }) {
+  const { clientId } = params;
   const [client, setClient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

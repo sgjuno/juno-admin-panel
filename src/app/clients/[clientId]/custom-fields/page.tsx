@@ -7,8 +7,8 @@ async function getClientCustomFields(clientId: string) {
   return JSON.parse(JSON.stringify(client));
 }
 
-export default async function CustomFieldsPage({ params }: { params: Promise<{ clientId: string }> }) {
-  const { clientId } = await params;
+export default async function CustomFieldsPage({ params }: { params: { clientId: string } }) {
+  const { clientId } = params;
   const client = await getClientCustomFields(clientId);
 
   if (!client) {
