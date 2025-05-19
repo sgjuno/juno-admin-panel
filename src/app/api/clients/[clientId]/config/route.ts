@@ -2,15 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Client from '@/models/Client';
 
-type Props = {
-  params: {
-    clientId: string;
-  };
-};
-
 export async function GET(
   request: NextRequest,
-  { params }: Props
+  { params }: { params: { clientId: string } }
 ) {
   try {
     await connectDB();
