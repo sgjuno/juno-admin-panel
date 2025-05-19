@@ -1,0 +1,12 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+//Commit rules//
+// Use my personal id to make commits
+// - Name: Sajal Garg, id: sajalgargciv2805@gmail.com
+
+// Git push rules
+// Use my work id for ushing code
+// Name: Sajal Garg, id: sajal@thisisjuno.ai
