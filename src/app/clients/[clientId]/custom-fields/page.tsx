@@ -9,8 +9,14 @@ async function getClientCustomFields(clientId: string) {
 }
 
 export default async function CustomFieldsPage({ params }: { params: Promise<{ clientId: string }> }) {
-  const { clientId } = await React.use(params);
-  const client = await getClientCustomFields(clientId);
+  const { clientId } = await params;
+  let client;
+  try {
+    client = await getClientCustomFields(clientId);
+  } catch (error) {
+    console.error('Error fetching client custom fields:', error);
+    return <div className="text-red-500">Error loading client data: {String(error)}</div>;
+  }
 
   if (!client) {
     return <div className="text-red-500">Client not found.</div>;
