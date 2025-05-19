@@ -28,15 +28,21 @@ interface ClientConfig {
 async function getClientConfig(clientId: string): Promise<ClientConfig> {
   // Get the base URL from the environment or use a default
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const response = await fetch(`${baseUrl}/api/clients/${clientId}/config`, {
-    cache: 'no-store'
-  });
+  console.log(`Fetching config from: ${baseUrl}/api/clients/${clientId}/config`);
+  try {
+    const response = await fetch(`${baseUrl}/api/clients/${clientId}/config`, {
+      cache: 'no-store'
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to fetch client configuration');
+    if (!response.ok) {
+      throw new Error(`Failed to fetch client configuration: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Error fetching client config:', error);
+    throw error;
   }
-
-  return response.json();
 }
 
 export default async function DataPointsPage({ params }: { params: Promise<{ clientId: string }> }) {
