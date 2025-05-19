@@ -28,9 +28,9 @@ export default function ClientLayout({
   params,
 }: {
   children: React.ReactNode;
-  params: Promise<{ clientId: string }>;
+  params: { clientId: string };
 }) {
-  const { clientId } = use(params);
+  const { clientId } = params;
   const pathname = usePathname();
   const base = `/clients/${clientId}`;
 
