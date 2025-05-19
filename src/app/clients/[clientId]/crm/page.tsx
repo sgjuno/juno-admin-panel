@@ -54,7 +54,7 @@ function StatusIndicator({ active }: { active: boolean }) {
 
 // Server component
 export default async function CRMIntegrationPage({ params }: { params: Promise<{ clientId: string }> }) {
-  const { clientId } = await React.use(params);
+  const { clientId } = await params;
   
   // Fetch data directly on the server
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
