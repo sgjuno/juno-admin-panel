@@ -2,18 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import JunoDatapoint from '@/models/JunoDatapoint';
 
-export async function GET(req: NextRequest, context: { params: { id: string } }) {
+export async function GET(req: NextRequest, context) {
   await connectDB();
-  const datapoint = await JunoDatapoint.findById(context.params.id);
+  const { id } = context.params;
+  const datapoint = await JunoDatapoint.findById(id);
   if (!datapoint) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json(datapoint);
 }
 
-export async function PUT(req: NextRequest, context: { params: { id: string } }) {
+export async function PUT(req: NextRequest, context) {
   await connectDB();
+  const { id } = context.params;
   const body = await req.json();
   try {
-    const updated = await JunoDatapoint.findByIdAndUpdate(context.params.id, body, { new: true });
+    const updated = await JunoDatapoint.findByIdAndUpdate(id, body, { new: true });
     if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(updated);
   } catch (e: any) {
@@ -21,10 +23,11 @@ export async function PUT(req: NextRequest, context: { params: { id: string } })
   }
 }
 
-export async function DELETE(req: NextRequest, context: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, context) {
   await connectDB();
+  const { id } = context.params;
   try {
-    const deleted = await JunoDatapoint.findByIdAndDelete(context.params.id);
+    const deleted = await JunoDatapoint.findByIdAndDelete(id);
     if (!deleted) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json({ success: true });
   } catch (e: any) {

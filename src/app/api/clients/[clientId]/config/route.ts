@@ -4,7 +4,7 @@ import Client from '@/models/Client';
 
 export async function GET(
   request: NextRequest,
-  context: { params: { clientId: string } }
+  context
 ) {
   try {
     await connectDB();

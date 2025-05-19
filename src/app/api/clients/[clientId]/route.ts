@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Client from '@/models/Client';
 
-export async function GET(request: NextRequest, context: { params: { clientId: string } }) {
+export async function GET(request: NextRequest, context) {
   await connectDB();
   const { clientId } = context.params;
   const client = await Client.findById(clientId);
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest, context: { params: { clientId: s
   return NextResponse.json(client);
 }
 
-export async function PUT(request: NextRequest, context: { params: { clientId: string } }) {
+export async function PUT(request: NextRequest, context) {
   await connectDB();
   const { clientId } = context.params;
   const data = await request.json();
@@ -23,7 +23,7 @@ export async function PUT(request: NextRequest, context: { params: { clientId: s
   return NextResponse.json(client);
 }
 
-export async function DELETE(request: NextRequest, context: { params: { clientId: string } }) {
+export async function DELETE(request: NextRequest, context) {
   await connectDB();
   const { clientId } = context.params;
   const client = await Client.findByIdAndDelete(clientId);
