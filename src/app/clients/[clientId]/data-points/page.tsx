@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import React from 'react';
 import { getBaseUrl } from '@/lib/getBaseUrl';
+import { cookies } from 'next/headers';
 
 interface ClientConfig {
   detailsRequired: Array<{
@@ -28,14 +29,18 @@ interface ClientConfig {
 
 async function getClientConfig(clientId: string): Promise<ClientConfig> {
   try {
+    const cookieHeader = cookies().toString();
+    console.log('Forwarding cookies:', cookieHeader);
     const response = await fetch(`${getBaseUrl()}/api/clients/${clientId}/config`, {
-      cache: 'no-store'
+      cache: 'no-store',
+      headers: {
+        cookie: cookieHeader,
+      },
     });
-
+    console.log('Config fetch response:', response.status, response.statusText);
     if (!response.ok) {
       throw new Error(`Failed to fetch client configuration: ${response.status} ${response.statusText}`);
     }
-
     return response.json();
   } catch (error) {
     console.error('Error fetching client config:', error);
