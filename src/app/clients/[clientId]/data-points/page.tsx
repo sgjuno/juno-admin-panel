@@ -45,8 +45,8 @@ async function getClientConfig(clientId: string): Promise<ClientConfig> {
   }
 }
 
-export default async function DataPointsPage({ params }: { params: Promise<{ clientId: string }> }) {
-  const { clientId } = await params;
+export default async function DataPointsPage({ params }: any) {
+  const { clientId } = params;
   const clientConfig = await getClientConfig(clientId);
 
   if (!clientConfig) {
