@@ -11,6 +11,7 @@ import { Settings, RefreshCw, CheckCircle, XCircle, Key, Link2, UserCog, History
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandInput, CommandItem, CommandList, CommandEmpty } from '@/components/ui/command';
 import { CRMIntegrationClient } from '@/app/clients/[clientId]/crm/components/CRMIntegrationClient';
+import { getBaseUrl } from '@/lib/getBaseUrl';
 
 interface CRM {
   key: string;
@@ -57,7 +58,7 @@ export default async function CRMIntegrationPage({ params }: any) {
   const { clientId } = params;
   
   // Fetch data directly on the server
-  const res = await fetch(`/api/clients/${clientId}`, {
+  const res = await fetch(`${getBaseUrl()}/api/clients/${clientId}`, {
     cache: 'no-store',
   });
   

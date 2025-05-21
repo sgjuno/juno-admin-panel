@@ -3,6 +3,7 @@ import DataPointVisualizer from '@/components/DataPointVisualizer';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import React from 'react';
+import { getBaseUrl } from '@/lib/getBaseUrl';
 
 interface ClientConfig {
   detailsRequired: Array<{
@@ -27,7 +28,7 @@ interface ClientConfig {
 
 async function getClientConfig(clientId: string): Promise<ClientConfig> {
   try {
-    const response = await fetch(`/api/clients/${clientId}/config`, {
+    const response = await fetch(`${getBaseUrl()}/api/clients/${clientId}/config`, {
       cache: 'no-store'
     });
 
