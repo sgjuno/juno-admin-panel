@@ -24,8 +24,8 @@ interface Client {
   country: string;
 }
 
-export default function ClientBasicInfoPage({ params }: { params: Promise<{ clientId: string }> }) {
-  const { clientId } = React.use(params);
+export default function ClientBasicInfoPage({ params }: { params: { clientId: string } }) {
+  const { clientId } = params;
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
