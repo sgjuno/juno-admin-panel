@@ -26,11 +26,8 @@ interface ClientConfig {
 }
 
 async function getClientConfig(clientId: string): Promise<ClientConfig> {
-  // Get the base URL from the environment or use a default
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  console.log(`Fetching config from: ${baseUrl}/api/clients/${clientId}/config`);
   try {
-    const response = await fetch(`${baseUrl}/api/clients/${clientId}/config`, {
+    const response = await fetch(`/api/clients/${clientId}/config`, {
       cache: 'no-store'
     });
 

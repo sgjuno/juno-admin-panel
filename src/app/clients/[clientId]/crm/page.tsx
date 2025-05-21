@@ -57,8 +57,7 @@ export default async function CRMIntegrationPage({ params }: any) {
   const { clientId } = params;
   
   // Fetch data directly on the server
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-  const res = await fetch(`${baseUrl}/api/clients/${clientId}`, {
+  const res = await fetch(`/api/clients/${clientId}`, {
     cache: 'no-store',
   });
   
