@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandInput, CommandItem, CommandList, CommandEmpty } from '@/components/ui/command';
 import { CRMIntegrationClient } from '@/app/clients/[clientId]/crm/components/CRMIntegrationClient';
 import { getBaseUrl } from '@/lib/getBaseUrl';
+import { cookies } from 'next/headers';
 
 interface CRM {
   key: string;
@@ -56,10 +57,14 @@ function StatusIndicator({ active }: { active: boolean }) {
 // Server component
 export default async function CRMIntegrationPage({ params }: any) {
   const { clientId } = params;
+  const cookieHeader = cookies().toString();
   
   // Fetch data directly on the server
   const res = await fetch(`${getBaseUrl()}/api/clients/${clientId}`, {
     cache: 'no-store',
+    headers: {
+      cookie: cookieHeader,
+    },
   });
   
   if (!res.ok) {
