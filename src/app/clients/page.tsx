@@ -20,20 +20,7 @@ import {
 import EditClientModal from '@/components/EditClientModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-
-interface Client {
-  _id: string;
-  pocName: string;
-  pocContact: string;
-  type: string;
-  website: string;
-  companyName: string;
-  companyNumber: string;
-  address: string;
-  country: string;
-  isActive: boolean;
-  clientCode: string;
-}
+import { Client } from '@/types/Client';
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);

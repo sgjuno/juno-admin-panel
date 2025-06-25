@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import DocumentUploader from './DocumentUploader';
+import { Client } from '@/types/Client';
 
 interface ClientConfig {
   companyName: string;
@@ -15,25 +16,6 @@ interface ClientConfig {
   emailDomain: string;
   clientCode: string;
   configurations: Record<string, string>;
-}
-
-interface Client {
-  _id?: string;
-  pocName: string;
-  pocContact: string;
-  type: 'BROKER' | 'LENDER';
-  website: string;
-  companyName: string;
-  companyNumber: string;
-  address: string;
-  country: string;
-  isActive: boolean;
-  carFinanceDomain: boolean;
-  propertyFinanceDomain: boolean;
-  smeFinanceDomain: boolean;
-  clientCode: string;
-  emailDomain: string;
-  onboardedAt?: number;
 }
 
 interface AddClientModalProps {
@@ -61,6 +43,7 @@ export default function AddClientModal({ isOpen, onClose, onAdd, existingClients
     smeFinanceDomain: false,
     clientCode: '',
     emailDomain: '',
+    onboardedAt: undefined,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -123,10 +106,20 @@ export default function AddClientModal({ isOpen, onClose, onAdd, existingClients
     if (sourceClient) {
       setFormData(prev => ({
         ...prev,
-        type: sourceClient.type,
-        carFinanceDomain: sourceClient.carFinanceDomain,
-        propertyFinanceDomain: sourceClient.propertyFinanceDomain,
-        smeFinanceDomain: sourceClient.smeFinanceDomain,
+        type: sourceClient.type === 'LENDER' ? 'LENDER' : 'BROKER',
+        carFinanceDomain: sourceClient.carFinanceDomain ?? false,
+        propertyFinanceDomain: sourceClient.propertyFinanceDomain ?? false,
+        smeFinanceDomain: sourceClient.smeFinanceDomain ?? false,
+        pocName: sourceClient.pocName || '',
+        pocContact: sourceClient.pocContact || '',
+        website: sourceClient.website || '',
+        companyName: sourceClient.companyName || '',
+        companyNumber: sourceClient.companyNumber || '',
+        address: sourceClient.address || '',
+        country: sourceClient.country || '',
+        clientCode: sourceClient.clientCode || '',
+        emailDomain: sourceClient.emailDomain || '',
+        onboardedAt: typeof sourceClient.onboardedAt === 'number' ? sourceClient.onboardedAt : undefined,
       }));
     }
     setShowCopyConfig(false);
@@ -166,7 +159,7 @@ export default function AddClientModal({ isOpen, onClose, onAdd, existingClients
                 </SelectTrigger>
                 <SelectContent>
                   {existingClients.map((client) => (
-                    <SelectItem key={client._id} value={client._id}>
+                    <SelectItem key={client._id || ''} value={client._id || ''}>
                       {client.companyName}
                     </SelectItem>
                   ))}

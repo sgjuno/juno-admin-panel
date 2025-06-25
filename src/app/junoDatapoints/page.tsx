@@ -291,7 +291,7 @@ export default function JunoDatapointsPage() {
         onOpenChange={setDialogOpen}
         detail={editing}
         clientId={''} // Not needed for single datapoint edit
-        onSave={async (updatedDetail) => {
+        onSave={async (updatedDetail: any) => {
           setSaving(true);
           setError("");
           setSuccess("");
