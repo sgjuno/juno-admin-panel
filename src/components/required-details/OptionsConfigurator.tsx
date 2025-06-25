@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Trash2, Plus, ArrowRight } from 'lucide-react';
+import { Trash2, Plus } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { DataPointCombobox } from './DataPointCombobox';
 
@@ -15,11 +15,10 @@ export function OptionsConfigurator({
   onChange: (value: any) => void,
   dataPoints: string[]
 }) {
-  const [configType, setConfigType] = useState<'simple' | 'mapping' | 'numeric' | 'complex'>(
+  const [configType, setConfigType] = useState<'simple' | 'mapping' | 'numeric'>(
     Array.isArray(value) ? 'simple' : 
     typeof value === 'object' && Object.values(value).some(v => Array.isArray(v)) ? 'mapping' :
-    typeof value === 'object' && Object.keys(value).every(k => !isNaN(Number(k))) ? 'numeric' :
-    'complex'
+    'numeric'
   );
 
   const [simpleOptions, setSimpleOptions] = useState<string[]>(Array.isArray(value) ? value : []);
@@ -29,11 +28,8 @@ export function OptionsConfigurator({
   const [numericOptions, setNumericOptions] = useState<{ [key: string]: string[] }>(
     typeof value === 'object' && !Array.isArray(value) ? value : {}
   );
-  const [complexOptions, setComplexOptions] = useState<{ [key: string]: string }>(
-    typeof value === 'object' && !Array.isArray(value) ? value : {}
-  );
 
-  // Handlers for each config type (simple, mapping, numeric, complex)
+  // Handlers for each config type (simple, mapping, numeric)
   const handleSimpleOptionAdd = () => {
     setSimpleOptions([...simpleOptions, '']);
   };
@@ -80,22 +76,6 @@ export function OptionsConfigurator({
     setNumericOptions(newOptions);
     onChange(newOptions);
   };
-  const handleComplexOptionAdd = () => {
-    setComplexOptions({ ...complexOptions, '': '' });
-  };
-  const handleComplexOptionChange = (key: string, newKey: string, value: string) => {
-    const newOptions = { ...complexOptions };
-    delete newOptions[key];
-    newOptions[newKey] = value;
-    setComplexOptions(newOptions);
-    onChange(newOptions);
-  };
-  const handleComplexOptionRemove = (key: string) => {
-    const newOptions = { ...complexOptions };
-    delete newOptions[key];
-    setComplexOptions(newOptions);
-    onChange(newOptions);
-  };
 
   return (
     <div className="space-y-4">
@@ -104,7 +84,6 @@ export function OptionsConfigurator({
           <TabsTrigger value="simple">Simple Options</TabsTrigger>
           <TabsTrigger value="mapping">Option Mapping</TabsTrigger>
           <TabsTrigger value="numeric">Numeric Branching</TabsTrigger>
-          <TabsTrigger value="complex">Complex Mapping</TabsTrigger>
         </TabsList>
 
         <TabsContent value="simple" className="space-y-4">
@@ -195,38 +174,6 @@ export function OptionsConfigurator({
           ))}
           <Button onClick={handleNumericOptionAdd} variant="outline" className="w-full">
             <Plus className="w-4 h-4 mr-2" /> Add Numeric Option
-          </Button>
-        </TabsContent>
-
-        <TabsContent value="complex" className="space-y-4">
-          {Object.entries(complexOptions).map(([key, value]) => (
-            <div key={key} className="space-y-2">
-              <div className="flex gap-2">
-                <Input
-                  value={key}
-                  onChange={(e) => handleComplexOptionChange(key, e.target.value, value)}
-                  placeholder="Option key"
-                />
-                <ArrowRight className="w-4 h-4 self-center" />
-                <DataPointCombobox
-                  value={value}
-                  onChange={(newValue) => handleComplexOptionChange(key, key, typeof newValue === 'string' ? newValue : (Array.isArray(newValue) ? newValue[0] : ''))}
-                  placeholder="Select data point"
-                  dataPoints={dataPoints}
-                  currentDatapointId=""
-                />
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleComplexOptionRemove(key)}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </div>
-          ))}
-          <Button onClick={handleComplexOptionAdd} variant="outline" className="w-full">
-            <Plus className="w-4 h-4 mr-2" /> Add Complex Option
           </Button>
         </TabsContent>
       </Tabs>

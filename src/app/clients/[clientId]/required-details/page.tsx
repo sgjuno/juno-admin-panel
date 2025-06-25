@@ -12,7 +12,7 @@ import { Plus, Trash2, Save, ChevronDown, ChevronUp, Check, ChevronsUpDown, Aler
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +21,8 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input as ShadInput } from '@/components/ui/input';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import DocumentUploader from '@/components/DocumentUploader';
 
 interface DetailRequired {
   datapoint: string;
@@ -52,6 +54,7 @@ interface DataPointComboboxProps {
   isDuplicate?: boolean;
   isIdField?: boolean;
   usedDatapoints?: Map<string, number>;
+  multi?: boolean;
 }
 
 function DataPointCombobox({ 
@@ -62,9 +65,11 @@ function DataPointCombobox({
   currentDatapointId, 
   isDuplicate,
   isIdField,
-  usedDatapoints 
+  usedDatapoints,
+  multi = false
 }: DataPointComboboxProps) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
 
   // Support multi-select display for array values
   const selectedValues: string[] = Array.isArray(value)
@@ -85,6 +90,12 @@ function DataPointCombobox({
       return usageCount === 0;
     });
   }, [dataPoints, isIdField, usedDatapoints, currentDatapointId]);
+
+  // Filter by search
+  const filteredDataPoints = useMemo(() => {
+    if (!search) return availableDataPoints;
+    return availableDataPoints.filter(dp => dp.toLowerCase().includes(search.toLowerCase()));
+  }, [availableDataPoints, search]);
 
   return (
     <div className="relative">
@@ -125,37 +136,44 @@ function DataPointCombobox({
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-full p-0">
+        <PopoverContent className="w-full p-0 max-h-72 overflow-y-auto min-w-[220px]">
           <Command>
-            <CommandInput placeholder={`Search ${placeholder.toLowerCase()}...`} />
+            <CommandInput
+              placeholder={`Search ${placeholder.toLowerCase()}...`}
+              value={search}
+              onValueChange={setSearch}
+              className="sticky top-0 z-10 bg-background"
+            />
             <CommandEmpty>No data point found.</CommandEmpty>
             <CommandGroup>
-              {availableDataPoints
-                .filter(dp => dp !== currentDatapointId)
-                .map((datapoint) => (
-                  <CommandItem
-                    key={datapoint}
-                    value={datapoint}
-                    onSelect={() => {
+              {filteredDataPoints.map((datapoint) => (
+                <CommandItem
+                  key={datapoint}
+                  value={datapoint}
+                  onSelect={() => {
+                    if (multi) {
                       if (selectedValues.includes(datapoint)) {
-                        // Toggle selection
+                        // Remove
                         const newVals = selectedValues.filter((v) => v !== datapoint);
                         onChange(newVals);
                       } else {
-                        onChange(datapoint);
-                        setOpen(false);
+                        onChange([...selectedValues, datapoint]);
                       }
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        selectedValues.includes(datapoint) ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    {datapoint}
-                  </CommandItem>
-                ))}
+                    } else {
+                      onChange(datapoint);
+                      setOpen(false);
+                    }
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      selectedValues.includes(datapoint) ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {datapoint}
+                </CommandItem>
+              ))}
             </CommandGroup>
           </Command>
         </PopoverContent>
@@ -171,7 +189,7 @@ function DataPointCombobox({
 }
 
 interface OptionConfig {
-  type: 'simple' | 'mapping' | 'numeric' | 'complex';
+  type: 'simple' | 'mapping' | 'numeric';
   options: string[] | { [key: string]: string[] | string | null };
 }
 
@@ -189,11 +207,10 @@ function OptionsConfigurator({
   onChange: (value: any) => void,
   dataPoints: string[]
 }) {
-  const [configType, setConfigType] = useState<'simple' | 'mapping' | 'numeric' | 'complex'>(
+  const [configType, setConfigType] = useState<'simple' | 'mapping' | 'numeric'>(
     Array.isArray(value) ? 'simple' : 
     typeof value === 'object' && Object.values(value).some(v => Array.isArray(v)) ? 'mapping' :
-    typeof value === 'object' && Object.keys(value).every(k => !isNaN(Number(k))) ? 'numeric' :
-    'complex'
+    'numeric'
   );
 
   const [simpleOptions, setSimpleOptions] = useState<string[]>(Array.isArray(value) ? value : []);
@@ -201,9 +218,6 @@ function OptionsConfigurator({
     typeof value === 'object' && !Array.isArray(value) ? value : {}
   );
   const [numericOptions, setNumericOptions] = useState<{ [key: string]: string[] }>(
-    typeof value === 'object' && !Array.isArray(value) ? value : {}
-  );
-  const [complexOptions, setComplexOptions] = useState<{ [key: string]: string }>(
     typeof value === 'object' && !Array.isArray(value) ? value : {}
   );
 
@@ -262,25 +276,6 @@ function OptionsConfigurator({
     onChange(newOptions);
   };
 
-  const handleComplexOptionAdd = () => {
-    setComplexOptions({ ...complexOptions, '': '' });
-  };
-
-  const handleComplexOptionChange = (key: string, newKey: string, value: string) => {
-    const newOptions = { ...complexOptions };
-    delete newOptions[key];
-    newOptions[newKey] = value;
-    setComplexOptions(newOptions);
-    onChange(newOptions);
-  };
-
-  const handleComplexOptionRemove = (key: string) => {
-    const newOptions = { ...complexOptions };
-    delete newOptions[key];
-    setComplexOptions(newOptions);
-    onChange(newOptions);
-  };
-
   return (
     <div className="space-y-4">
       <Tabs value={configType} onValueChange={(v) => setConfigType(v as typeof configType)}>
@@ -288,7 +283,6 @@ function OptionsConfigurator({
           <TabsTrigger value="simple">Simple Options</TabsTrigger>
           <TabsTrigger value="mapping">Option Mapping</TabsTrigger>
           <TabsTrigger value="numeric">Numeric Branching</TabsTrigger>
-          <TabsTrigger value="complex">Complex Mapping</TabsTrigger>
         </TabsList>
 
         <TabsContent value="simple" className="space-y-4">
@@ -348,6 +342,7 @@ function OptionsConfigurator({
                   placeholder="Select data points"
                   dataPoints={dataPoints}
                   currentDatapointId=""
+                  multi={true}
                 />
               </div>
             </div>
@@ -393,54 +388,13 @@ function OptionsConfigurator({
                   placeholder="Select data points"
                   dataPoints={dataPoints}
                   currentDatapointId=""
+                  multi={true}
                 />
               </div>
             </div>
           ))}
           <Button onClick={handleNumericOptionAdd} variant="outline" className="w-full">
             <Plus className="w-4 h-4 mr-2" /> Add Numeric Option
-          </Button>
-        </TabsContent>
-
-        <TabsContent value="complex" className="space-y-4">
-          {Object.entries(complexOptions).map(([key, value]) => (
-            <div key={key} className="space-y-2">
-              <div className="flex gap-2">
-                <Input
-                  value={key}
-                  onChange={(e) => handleComplexOptionChange(key, e.target.value, value)}
-                  placeholder="Option key"
-                />
-                <ArrowRight className="w-4 h-4 self-center" />
-                <DataPointCombobox
-                  value={Array.isArray(value) ? value : typeof value === 'string' && value ? [value] : []}
-                  onChange={(newValue) =>
-                    handleComplexOptionChange(
-                      key,
-                      key,
-                      Array.isArray(newValue)
-                        ? newValue[0] || ''
-                        : typeof newValue === 'string'
-                        ? newValue
-                        : ''
-                    )
-                  }
-                  placeholder="Select data point"
-                  dataPoints={dataPoints}
-                  currentDatapointId=""
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleComplexOptionRemove(key)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          ))}
-          <Button onClick={handleComplexOptionAdd} variant="outline" className="w-full">
-            <Plus className="w-4 h-4 mr-2" /> Add Complex Option
           </Button>
         </TabsContent>
       </Tabs>
@@ -643,6 +597,15 @@ function BranchingRuleConfigurator({
   );
 }
 
+interface JunoDatapoint {
+  id: string;
+  type?: string;
+  category: string;
+  questionText: string;
+  options?: string[];
+  specificParsingRules?: string;
+}
+
 export default function RequiredDetailsPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = React.use(params);
   const [client, setClient] = useState<any>(null);
@@ -652,22 +615,37 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [newCategory, setNewCategory] = useState('');
-  const [junoDatapoints, setJunoDatapoints] = useState<{ id: string; questionText: string }[]>([]);
+  const [junoDatapoints, setJunoDatapoints] = useState<JunoDatapoint[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [showCustomCategory, setShowCustomCategory] = useState(false);
+  const [initialDetailsRequired, setInitialDetailsRequired] = useState<Category[]>([]);
+  const [addDetailDialogOpen, setAddDetailDialogOpen] = useState<number | null>(null);
+  const [selectedDetailDatapoints, setSelectedDetailDatapoints] = useState<string[]>([]);
+  const [categorySearch, setCategorySearch] = useState('');
+  const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false);
+  const [showDocumentUploader, setShowDocumentUploader] = useState(false);
+  const [showCopyConfig, setShowCopyConfig] = useState(false);
+  const [selectedSourceClient, setSelectedSourceClient] = useState('');
+  const [existingClients, setExistingClients] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [clientRes, datapointsRes] = await Promise.all([
+        const [clientRes, datapointsRes, clientsRes] = await Promise.all([
           fetch(`/api/clients/${clientId}`),
-          fetch('/api/juno-datapoints')
+          fetch('/api/juno-datapoints'),
+          fetch('/api/clients')
         ]);
         
         const clientData = await clientRes.json();
         const datapointsData = await datapointsRes.json();
+        const clientsData = await clientsRes.json();
         
         setClient(clientData);
         setDetailsRequired(clientData.detailsRequired || []);
+        setInitialDetailsRequired(clientData.detailsRequired || []);
         setJunoDatapoints(datapointsData);
+        setExistingClients(clientsData.filter((c: any) => c._id !== clientId));
         setLoading(false);
       } catch (err) {
         setError('Failed to load data');
@@ -679,9 +657,15 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
   }, [clientId]);
 
   const handleAddCategory = () => {
-    if (!newCategory) return;
-    setDetailsRequired([...detailsRequired, { category: newCategory, detailRequired: [] }]);
+    let categoryToAdd = newCategory;
+    if (!detailsRequired.length && !showCustomCategory) {
+      categoryToAdd = selectedCategory;
+    }
+    if (!categoryToAdd) return;
+    setDetailsRequired([...detailsRequired, { category: categoryToAdd, detailRequired: [] }]);
     setNewCategory('');
+    setSelectedCategory('');
+    setShowCustomCategory(false);
   };
 
   const handleRemoveCategory = (index: number) => {
@@ -766,6 +750,39 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
     return (usedDatapoints.get(id) || 0) > 1;
   };
 
+  const uniqueCategories = useMemo(() => {
+    const cats = junoDatapoints.map(dp => dp.category).filter(Boolean);
+    return Array.from(new Set(cats));
+  }, [junoDatapoints]);
+
+  const isDirty = useMemo(() => {
+    return JSON.stringify(detailsRequired) !== JSON.stringify(initialDetailsRequired);
+  }, [detailsRequired, initialDetailsRequired]);
+
+  const handleConfigExtracted = (config: any) => {
+    if (config.detailsRequired && config.detailsRequired.length > 0) {
+      setDetailsRequired(config.detailsRequired);
+      setSuccess('Configuration extracted successfully!');
+    } else {
+      setError('No required details were extracted from the document. Please check the document or try another file.');
+    }
+    setShowDocumentUploader(false);
+  };
+
+  const handleCopyConfig = async (sourceClientId: string) => {
+    try {
+      const res = await fetch(`/api/clients/${sourceClientId}`);
+      const sourceClient = await res.json();
+      if (sourceClient.detailsRequired) {
+        setDetailsRequired(sourceClient.detailsRequired);
+        setSuccess('Configuration copied successfully!');
+      }
+    } catch (err) {
+      setError('Failed to copy configuration');
+    }
+    setShowCopyConfig(false);
+  };
+
   if (loading) {
     return (
       <div className="space-y-6 p-6">
@@ -800,10 +817,24 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
             Configure the details required from clients during the application process
           </p>
         </div>
-        <Button onClick={handleSave} disabled={saving} className="gap-2">
-          <Save className="w-4 h-4" />
-          {saving ? 'Saving...' : 'Save Changes'}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowDocumentUploader(!showDocumentUploader)}
+          >
+            {showDocumentUploader ? 'Hide Document Upload' : 'Upload Configuration Document'}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowCopyConfig(!showCopyConfig)}
+          >
+            {showCopyConfig ? 'Hide Copy Configuration' : 'Copy Configuration from Existing Client'}
+          </Button>
+          <Button onClick={handleSave} disabled={saving || !isDirty} className="gap-2">
+            <Save className="w-4 h-4" />
+            {saving ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </div>
       </div>
 
       {success && (
@@ -817,22 +848,116 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
         </Alert>
       )}
 
+      {showDocumentUploader && (
+        <DocumentUploader onConfigExtracted={handleConfigExtracted} clientId={clientId} />
+      )}
+
+      {showCopyConfig && (
+        <div className="space-y-4">
+          <Select
+            value={selectedSourceClient || ''}
+            onValueChange={handleCopyConfig}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select a client to copy from" />
+            </SelectTrigger>
+            <SelectContent>
+              {existingClients.map((client) => (
+                <SelectItem key={client._id} value={client._id}>
+                  {client.companyName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       <Card className="w-full">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Categories</CardTitle>
             <div className="flex gap-2">
-              <Input
-                placeholder="New category name"
-                value={newCategory}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewCategory(e.target.value)}
-                className="w-64"
-              />
-              <Button onClick={handleAddCategory} variant="outline" className="gap-2">
-                <Plus className="w-4 h-4" /> Add Category
-              </Button>
+              {detailsRequired.length === 0 ? (
+                <>
+                  <Popover open={categoryPopoverOpen} onOpenChange={setCategoryPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-64 justify-between">
+                        {selectedCategory || 'Select category'}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-0">
+                      <Command>
+                        <CommandInput placeholder="Search categories..." value={categorySearch} onValueChange={setCategorySearch} />
+                        <CommandList className="max-h-60 overflow-y-auto">
+                          {uniqueCategories.filter(cat => cat.toLowerCase().includes(categorySearch.toLowerCase())).map(cat => (
+                            <CommandItem key={cat} value={cat} onSelect={() => {
+                              setSelectedCategory(cat);
+                              setShowCustomCategory(false);
+                              setCategoryPopoverOpen(false);
+                              setCategorySearch('');
+                            }}>
+                              {cat}
+                            </CommandItem>
+                          ))}
+                          <CommandItem value="__other__" onSelect={() => {
+                            setShowCustomCategory(true);
+                            setSelectedCategory('');
+                            setCategoryPopoverOpen(false);
+                            setCategorySearch('');
+                          }}>
+                            Other (Add new)
+                          </CommandItem>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {showCustomCategory && (
+                    <Input
+                      placeholder="New category name"
+                      value={newCategory}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewCategory(e.target.value)}
+                      className="w-64"
+                    />
+                  )}
+                  <Button onClick={handleAddCategory} variant="outline" className="gap-2" disabled={(!selectedCategory && !newCategory)}>
+                    <Plus className="w-4 h-4" /> Add Category
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Popover open={categoryPopoverOpen} onOpenChange={setCategoryPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-64 justify-between">
+                        {newCategory || 'New category name'}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-0">
+                      <Command>
+                        <CommandInput placeholder="Search categories..." value={categorySearch} onValueChange={setCategorySearch} />
+                        <CommandList className="max-h-60 overflow-y-auto">
+                          {uniqueCategories.filter(cat => cat.toLowerCase().includes(categorySearch.toLowerCase())).map(cat => (
+                            <CommandItem key={cat} value={cat} onSelect={() => {
+                              setNewCategory(cat);
+                              setCategoryPopoverOpen(false);
+                              setCategorySearch('');
+                            }}>
+                              {cat}
+                            </CommandItem>
+                          ))}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <Button onClick={handleAddCategory} variant="outline" className="gap-2" disabled={!newCategory}>
+                    <Plus className="w-4 h-4" /> Add Category
+                  </Button>
+                </>
+              )}
             </div>
           </div>
+          <div className="mt-2 text-xs text-muted-foreground">You must click <b>Save Changes</b> to persist added/removed categories or details.</div>
         </CardHeader>
         <CardContent>
           <Accordion type="multiple" className="space-y-4 w-full">
@@ -871,11 +996,16 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0">
                                   <div className="space-y-2 w-full min-w-0">
                                     <Label className="break-words whitespace-normal">Datapoint</Label>
-                                    <Input
+                                    <DataPointCombobox
                                       value={detail.datapoint}
-                                      onChange={(e) => handleDetailChange(categoryIndex, detailIndex, 'datapoint', e.target.value)}
-                                      placeholder="e.g., loanAmount"
-                                      className="w-full"
+                                      onChange={(value) => handleDetailChange(categoryIndex, detailIndex, 'datapoint', value)}
+                                      placeholder="Select datapoints"
+                                      dataPoints={junoDatapoints.map(dp => dp.id)}
+                                      currentDatapointId={detail.id}
+                                      isDuplicate={isDuplicateDatapoint(detail.id)}
+                                      isIdField={false}
+                                      usedDatapoints={usedDatapoints}
+                                      multi={true}
                                     />
                                   </div>
                                   <div className="space-y-2 w-full min-w-0">
@@ -889,6 +1019,7 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
                                       isDuplicate={isDuplicateDatapoint(detail.id)}
                                       isIdField={true}
                                       usedDatapoints={usedDatapoints}
+                                      multi={false}
                                     />
                                   </div>
                                 </div>
@@ -913,6 +1044,7 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
                                       isDuplicate={isDuplicateDatapoint(detail.prev)}
                                       isIdField={true}
                                       usedDatapoints={usedDatapoints}
+                                      multi={false}
                                     />
                                   </div>
                                   <div className="space-y-2 w-full min-w-0">
@@ -937,6 +1069,7 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
                                       isDuplicate={isDuplicateDatapoint(detail.default_from_datapoint)}
                                       isIdField={true}
                                       usedDatapoints={usedDatapoints}
+                                      multi={false}
                                     />
                                   </div>
                                   <div className="space-y-2 w-full min-w-0">
@@ -1017,7 +1150,10 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
                       ))}
                     </Accordion>
                     <Button
-                      onClick={() => handleAddDetail(categoryIndex)}
+                      onClick={() => {
+                        setAddDetailDialogOpen(categoryIndex);
+                        setSelectedDetailDatapoints([]);
+                      }}
                       variant="outline"
                       className="w-full gap-2"
                     >
@@ -1028,6 +1164,60 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
               </AccordionItem>
             ))}
           </Accordion>
+          {/* Add Detail Dialog */}
+          <Dialog open={addDetailDialogOpen !== null} onOpenChange={open => { if (!open) setAddDetailDialogOpen(null); }}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Select Data Points to Add</DialogTitle>
+              </DialogHeader>
+              {addDetailDialogOpen !== null && (
+                <DataPointCombobox
+                  value={selectedDetailDatapoints}
+                  onChange={val => {
+                    if (val == null) setSelectedDetailDatapoints([]);
+                    else if (Array.isArray(val)) setSelectedDetailDatapoints(val);
+                    else setSelectedDetailDatapoints([val]);
+                  }}
+                  placeholder="Select data points"
+                  dataPoints={junoDatapoints.map(dp => dp.id)}
+                  currentDatapointId={''}
+                  multi={true}
+                />
+              )}
+              <div className="flex justify-end gap-2 mt-4">
+                <Button variant="outline" onClick={() => setAddDetailDialogOpen(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (addDetailDialogOpen !== null && selectedDetailDatapoints.length > 0) {
+                      setDetailsRequired(detailsRequired.map((cat, i) =>
+                        i === addDetailDialogOpen
+                          ? {
+                              ...cat,
+                              detailRequired: [
+                                ...cat.detailRequired,
+                                ...selectedDetailDatapoints.map(dpId => ({
+                                  datapoint: dpId,
+                                  id: dpId,
+                                  prev: null,
+                                  questionText: junoDatapoints.find(dp => dp.id === dpId)?.questionText || '',
+                                }))
+                              ]
+                            }
+                          : cat
+                      ));
+                      setAddDetailDialogOpen(null);
+                      setSelectedDetailDatapoints([]);
+                    }
+                  }}
+                  disabled={selectedDetailDatapoints.length === 0}
+                >
+                  Add
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </CardContent>
       </Card>
     </div>
