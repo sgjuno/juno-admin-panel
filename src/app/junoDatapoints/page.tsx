@@ -11,6 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Pencil, Trash2, Save } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { OptionsConfigurator } from '@/components/required-details/OptionsConfigurator';
+import { BranchingRuleConfigurator } from '@/components/required-details/BranchingRuleConfigurator';
+import { DataPointEditDialog } from '@/components/required-details/DataPointEditDialog';
 
 interface JunoDatapoint {
   _id?: string;
@@ -20,6 +23,7 @@ interface JunoDatapoint {
   questionText: string;
   options?: string[];
   specificParsingRules?: string;
+  branchingRule?: string;
 }
 
 const emptyDatapoint: JunoDatapoint = {
@@ -29,6 +33,7 @@ const emptyDatapoint: JunoDatapoint = {
   questionText: "",
   options: [],
   specificParsingRules: "",
+  branchingRule: "",
 };
 
 export default function JunoDatapointsPage() {
@@ -281,113 +286,35 @@ export default function JunoDatapointsPage() {
           )}
         </CardContent>
       </Card>
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{editing ? "Edit Datapoint" : "Add Datapoint"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>ID</Label>
-              <Input value={form.id} onChange={e => handleFormChange("id", e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Category</Label>
-              <Select 
-                value={form.category} 
-                onValueChange={(value) => {
-                  if (value === "others") {
-                    setShowCustomCategory(true);
-                    handleFormChange("category", "");
-                  } else {
-                    setShowCustomCategory(false);
-                    handleFormChange("category", value);
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                  <SelectItem value="others">Others</SelectItem>
-                </SelectContent>
-              </Select>
-              {showCustomCategory && (
-                <Input 
-                  value={form.category} 
-                  onChange={e => handleFormChange("category", e.target.value)}
-                  placeholder="Enter custom category"
-                  className="mt-2"
-                />
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Type</Label>
-              <Select 
-                value={form.type} 
-                onValueChange={(value) => {
-                  if (value === "others") {
-                    setShowCustomType(true);
-                    handleFormChange("type", "");
-                  } else {
-                    setShowCustomType(false);
-                    handleFormChange("type", value);
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {types.map(type => (
-                    <SelectItem key={type} value={type}>{type}</SelectItem>
-                  ))}
-                  <SelectItem value="others">Others</SelectItem>
-                </SelectContent>
-              </Select>
-              {showCustomType && (
-                <Input 
-                  value={form.type} 
-                  onChange={e => handleFormChange("type", e.target.value)}
-                  placeholder="Enter custom type"
-                  className="mt-2"
-                />
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Question Text</Label>
-              <Input value={form.questionText} onChange={e => handleFormChange("questionText", e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Options</Label>
-              {(form.options || []).map((opt, idx) => (
-                <div key={idx} className="flex gap-2 items-center">
-                  <Input value={opt} onChange={e => handleOptionsChange(idx, e.target.value)} className="w-64" />
-                  <Button size="icon" variant="ghost" onClick={() => handleRemoveOption(idx)} aria-label="Remove option">
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
-                </div>
-              ))}
-              <Button type="button" variant="outline" size="sm" onClick={handleAddOption} className="gap-2 mt-2">
-                <Plus className="w-4 h-4" /> Add Option
-              </Button>
-            </div>
-            <div className="space-y-2">
-              <Label>Specific Parsing Rules</Label>
-              <Input value={form.specificParsingRules} onChange={e => handleFormChange("specificParsingRules", e.target.value)} />
-            </div>
-          </div>
-          <DialogFooter className="mt-4">
-            <Button onClick={handleSave} disabled={saving} className="gap-2">
-              <Save className="w-4 h-4" /> {saving ? "Saving..." : "Save"}
-            </Button>
-            <Button variant="outline" onClick={closeDialog} type="button">Cancel</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DataPointEditDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        detail={editing}
+        clientId={''} // Not needed for single datapoint edit
+        onSave={async (updatedDetail) => {
+          setSaving(true);
+          setError("");
+          setSuccess("");
+          try {
+            const method = editing ? "PUT" : "POST";
+            const url = editing ? `/api/juno-datapoints/${editing._id}` : "/api/juno-datapoints";
+            const res = await fetch(url, {
+              method,
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(updatedDetail),
+            });
+            if (!res.ok) throw new Error("Failed to save");
+            setSuccess(editing ? "Updated successfully!" : "Added successfully!");
+            setDialogOpen(false);
+            fetchDatapoints();
+          } catch (e) {
+            setError("Failed to save datapoint.");
+          }
+          setSaving(false);
+        }}
+        onCancel={closeDialog}
+        dataPoints={datapoints.map(dp => dp.id)}
+      />
     </div>
   );
 } 

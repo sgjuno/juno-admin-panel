@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { ChevronsUpDown, Check, AlertTriangle } from 'lucide-react';
@@ -86,41 +86,44 @@ export function DataPointCombobox({
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-full p-0">
-          <Command>
+        <PopoverContent className="w-full p-0" align="start">
+          <Command className="w-full">
             <CommandInput placeholder={`Search ${placeholder.toLowerCase()}...`} />
-            <CommandEmpty>No data point found.</CommandEmpty>
-            <CommandGroup>
-              {availableDataPoints
-                .filter(dp => dp !== currentDatapointId)
-                .map((datapoint) => (
-                  <CommandItem
-                    key={datapoint}
-                    value={datapoint}
-                    onSelect={() => {
-                      if (isMulti) {
-                        // Toggle selection
-                        const exists = selectedValues.includes(datapoint);
-                        const newVals = exists
-                          ? selectedValues.filter((v) => v !== datapoint)
-                          : [...selectedValues, datapoint];
-                        onChange(newVals);
-                      } else {
-                        onChange(datapoint);
-                        setOpen(false);
-                      }
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        selectedValues.includes(datapoint) ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    {datapoint}
-                  </CommandItem>
-                ))}
-            </CommandGroup>
+            <CommandList>
+              <CommandEmpty>No data point found.</CommandEmpty>
+              <CommandGroup>
+                {availableDataPoints
+                  .filter(dp => dp !== currentDatapointId)
+                  .map((datapoint) => (
+                    <CommandItem
+                      key={datapoint}
+                      value={datapoint}
+                      onSelect={() => {
+                        if (isMulti) {
+                          // Toggle selection
+                          const exists = selectedValues.includes(datapoint);
+                          const newVals = exists
+                            ? selectedValues.filter((v) => v !== datapoint)
+                            : [...selectedValues, datapoint];
+                          onChange(newVals);
+                        } else {
+                          onChange(datapoint);
+                          setOpen(false);
+                        }
+                      }}
+                      className="cursor-pointer"
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedValues.includes(datapoint) ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      <span className="truncate">{datapoint}</span>
+                    </CommandItem>
+                  ))}
+              </CommandGroup>
+            </CommandList>
           </Command>
         </PopoverContent>
       </Popover>

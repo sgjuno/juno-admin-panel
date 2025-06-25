@@ -86,8 +86,9 @@ export default function ClientsPage() {
       await fetchClients();
       return true;
     } catch (err) {
-      setAddClientError(err instanceof Error ? err.message : 'Failed to add client');
-      return false;
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add client';
+      setAddClientError(errorMessage);
+      throw err; // Re-throw to let the modal handle the error
     }
   };
 
