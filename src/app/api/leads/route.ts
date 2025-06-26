@@ -45,10 +45,4 @@ export async function GET(req: Request) {
   const total = await Lead.countDocuments(filter);
   const leads = await Lead.find(filter).sort({ createdAt: -1 }).skip(skip).limit(pageSize);
   return NextResponse.json({ leads, total });
-}
-
-export async function GET_CLIENT_CODES() {
-  await connectDB();
-  const codes = await Lead.distinct('clientCode');
-  return NextResponse.json(codes);
 } 
