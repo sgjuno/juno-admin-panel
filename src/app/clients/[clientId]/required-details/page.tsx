@@ -440,7 +440,16 @@ function renderSelectedFieldsTable(selectedFields: string[], setSelectedFields: 
         <tbody>
           {selectedFields.map((field: string) => (
             <tr key={field} className="border-b last:border-b-0">
-              <td className="p-2 break-words whitespace-normal">{field}</td>
+              <td className="p-2 break-words whitespace-normal max-w-[180px] truncate">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="block truncate">{field}</span>
+                    </TooltipTrigger>
+                    <TooltipContent>{field}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </td>
               <td className="p-2 text-center">
                 <button
                   type="button"

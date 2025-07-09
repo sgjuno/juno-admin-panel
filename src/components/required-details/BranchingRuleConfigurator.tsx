@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Separator } from '@/components/ui/separator';
 import { ArrowRight, Trash2, Plus } from 'lucide-react';
 import { DataPointCombobox } from './DataPointCombobox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function renderSelectedFields(valueArray: string[], setSelectedFields: (fields: string[]) => void): React.ReactElement | null {
   if (!valueArray.length) return null;
@@ -125,7 +126,14 @@ export function BranchingRuleConfigurator({
                           }}
                           disabled={allSelected.includes(dp) && !selectedFields.includes(dp)}
                         />
-                        <span className="text-sm break-words whitespace-normal">{dp}</span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-sm break-words whitespace-normal max-w-[160px] truncate block">{dp}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>{dp}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </label>
                     ))}
                   </div>

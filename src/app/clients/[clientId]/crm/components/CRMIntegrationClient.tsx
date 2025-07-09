@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Settings, RefreshCw, CheckCircle, XCircle, Key, Link2, UserCog, History, Shield, ChevronRight, ChevronDown, Plus } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandInput, CommandItem, CommandList, CommandEmpty } from '@/components/ui/command';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface CRM {
   key: string;
@@ -152,14 +153,68 @@ export function CRMIntegrationClient({ client, clientCrms, crmConnections, custo
                     <tbody>
                       {/* Example mapping rows, replace with real data points */}
                       <tr>
-                        <td className="p-2">leadApplicantName</td>
-                        <td className="p-2"><Input className="w-48" placeholder="CRM Field Name" /></td>
-                        <td className="p-2"><Input className="w-32" placeholder="Default Value" /></td>
+                        <td className="p-2 max-w-[160px] truncate">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="block truncate">leadApplicantName</span>
+                              </TooltipTrigger>
+                              <TooltipContent>leadApplicantName</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </td>
+                        <td className="p-2 max-w-[180px] truncate">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Input className="w-48 truncate" placeholder="CRM Field Name" />
+                              </TooltipTrigger>
+                              <TooltipContent>CRM Field Name</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </td>
+                        <td className="p-2 max-w-[140px] truncate">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Input className="w-32 truncate" placeholder="Default Value" />
+                              </TooltipTrigger>
+                              <TooltipContent>Default Value</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </td>
                       </tr>
                       <tr>
-                        <td className="p-2">companyName</td>
-                        <td className="p-2"><Input className="w-48" placeholder="CRM Field Name" /></td>
-                        <td className="p-2"><Input className="w-32" placeholder="Default Value" /></td>
+                        <td className="p-2 max-w-[160px] truncate">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="block truncate">companyName</span>
+                              </TooltipTrigger>
+                              <TooltipContent>companyName</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </td>
+                        <td className="p-2 max-w-[180px] truncate">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Input className="w-48 truncate" placeholder="CRM Field Name" />
+                              </TooltipTrigger>
+                              <TooltipContent>CRM Field Name</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </td>
+                        <td className="p-2 max-w-[140px] truncate">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Input className="w-32 truncate" placeholder="Default Value" />
+                              </TooltipTrigger>
+                              <TooltipContent>Default Value</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -179,9 +234,36 @@ export function CRMIntegrationClient({ client, clientCrms, crmConnections, custo
                       <tbody>
                         {customFields.map((field, idx) => (
                           <tr key={field.custom_field_id || idx}>
-                            <td className="p-2">{field.custom_field_name}</td>
-                            <td className="p-2">{field.normilized_field_name}</td>
-                            <td className="p-2 font-mono">{field.custom_field_id}</td>
+                            <td className="p-2 max-w-[180px] truncate">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="block truncate">{field.custom_field_name}</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>{field.custom_field_name}</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </td>
+                            <td className="p-2 max-w-[180px] truncate">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="block truncate">{field.normilized_field_name}</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>{field.normilized_field_name}</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </td>
+                            <td className="p-2 max-w-[160px] truncate font-mono">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="block truncate">{field.custom_field_id}</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>{field.custom_field_id}</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </td>
                             <td className="p-2"><Button variant="ghost" size="icon"><XCircle className="w-4 h-4 text-destructive" /></Button></td>
                           </tr>
                         ))}

@@ -12,6 +12,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { DateRange } from "react-day-picker";
 import { Badge } from "@/components/ui/badge";
 import { Command, CommandInput, CommandList, CommandItem, CommandEmpty } from "@/components/ui/command";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Lead {
   _id: string;
@@ -197,11 +198,56 @@ export default function LeadsTable() {
             ) : (
               leads.map(lead => (
                 <TableRow key={lead._id}>
-                  <TableCell>{lead.clientCode}</TableCell>
-                  <TableCell>{lead.threadId}</TableCell>
-                  <TableCell>{lead.status}</TableCell>
-                  <TableCell>{new Date(lead.createdAt).toLocaleString()}</TableCell>
-                  <TableCell>{new Date(lead.updatedAt).toLocaleString()}</TableCell>
+                  <TableCell className="max-w-[140px] truncate">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="block truncate">{lead.clientCode}</span>
+                        </TooltipTrigger>
+                        <TooltipContent>{lead.clientCode}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </TableCell>
+                  <TableCell className="max-w-[180px] truncate">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="block truncate">{lead.threadId}</span>
+                        </TooltipTrigger>
+                        <TooltipContent>{lead.threadId}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </TableCell>
+                  <TableCell className="max-w-[100px] truncate">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="block truncate">{lead.status}</span>
+                        </TooltipTrigger>
+                        <TooltipContent>{lead.status}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </TableCell>
+                  <TableCell className="max-w-[160px] truncate">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="block truncate">{new Date(lead.createdAt).toLocaleString()}</span>
+                        </TooltipTrigger>
+                        <TooltipContent>{new Date(lead.createdAt).toLocaleString()}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </TableCell>
+                  <TableCell className="max-w-[160px] truncate">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="block truncate">{new Date(lead.updatedAt).toLocaleString()}</span>
+                        </TooltipTrigger>
+                        <TooltipContent>{new Date(lead.updatedAt).toLocaleString()}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </TableCell>
                 </TableRow>
               ))
             )}
