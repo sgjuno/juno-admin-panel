@@ -21,6 +21,7 @@ import EditClientModal from '@/components/EditClientModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Client } from '@/types/Client';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -169,16 +170,68 @@ export default function ClientsPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {clients.map((client) => (
                 <tr key={client._id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">{client.companyName || client.pocName}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{client.pocName}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{client.pocContact}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {client.type === 'BROKER' ? 'Broker' : client.type === 'LENDER' ? 'Lender' : client.type}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600 max-w-[180px] truncate">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="block truncate">{client.companyName || client.pocName}</span>
+                        </TooltipTrigger>
+                        <TooltipContent>{client.companyName || client.pocName}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${client.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{client.isActive ? 'Active' : 'Not Active'}</span>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 max-w-[120px] truncate">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="block truncate">{client.pocName}</span>
+                        </TooltipTrigger>
+                        <TooltipContent>{client.pocName}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{client.clientCode}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 max-w-[120px] truncate">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="block truncate">{client.pocContact}</span>
+                        </TooltipTrigger>
+                        <TooltipContent>{client.pocContact}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 max-w-[100px] truncate">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="block truncate">{client.type === 'BROKER' ? 'Broker' : client.type === 'LENDER' ? 'Lender' : client.type}</span>
+                        </TooltipTrigger>
+                        <TooltipContent>{client.type === 'BROKER' ? 'Broker' : client.type === 'LENDER' ? 'Lender' : client.type}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap max-w-[100px] truncate">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="block truncate">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${client.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{client.isActive ? 'Active' : 'Not Active'}</span>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>{client.isActive ? 'Active' : 'Not Active'}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 max-w-[120px] truncate">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="block truncate">{client.clientCode}</span>
+                        </TooltipTrigger>
+                        <TooltipContent>{client.clientCode}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right flex gap-2 justify-end">
                     <Link href={`/clients/${client._id}`}>
                       <Button variant="outline" className="gap-2" aria-label="Configure client">

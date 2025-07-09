@@ -16,6 +16,7 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from 
 import { Table } from '@/components/ui/table';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const VARIABLES = [
   { label: 'Client Name', value: '${clientName}' },
@@ -300,8 +301,26 @@ export default function IrrelevancyHandlingPage({ params }: { params: Promise<{ 
                 )}
                 {rules.map((rule, idx) => (
                   <tr key={idx} className="odd:bg-muted">
-                    <td>{rule.keywords?.join(', ')}</td>
-                    <td>{rule.threshold}</td>
+                    <td className="max-w-[200px] truncate">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="block truncate">{rule.keywords?.join(', ')}</span>
+                          </TooltipTrigger>
+                          <TooltipContent>{rule.keywords?.join(', ')}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </td>
+                    <td className="max-w-[80px] truncate">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="block truncate">{rule.threshold}</span>
+                          </TooltipTrigger>
+                          <TooltipContent>{rule.threshold}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </td>
                     <td className="flex gap-2">
                       <Button variant="ghost" size="icon" aria-label="Edit Rule" onClick={() => openEditRule(rule, idx)}><Edit className="w-4 h-4" /></Button>
                       <Button variant="ghost" size="icon" aria-label="Delete Rule" onClick={() => deleteRule(idx)}><Trash2 className="w-4 h-4 text-destructive" /></Button>

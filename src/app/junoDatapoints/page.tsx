@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { OptionsConfigurator } from '@/components/required-details/OptionsConfigurator';
 import { BranchingRuleConfigurator } from '@/components/required-details/BranchingRuleConfigurator';
 import { DataPointEditDialog } from '@/components/required-details/DataPointEditDialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface JunoDatapoint {
   _id?: string;
@@ -261,12 +262,55 @@ export default function JunoDatapointsPage() {
                 <TableBody>
                   {filteredDatapoints.map((dp) => (
                     <TableRow key={dp._id || dp.id}>
-                      <TableCell>{dp.id}</TableCell>
-                      <TableCell>{dp.category}</TableCell>
-                      <TableCell>{dp.type}</TableCell>
-                      <TableCell>{dp.questionText}</TableCell>
-                      <TableCell>
-                        {dp.options && dp.options.length > 0 ? dp.options.join(", ") : "-"}
+                      <TableCell className="max-w-[120px] truncate">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="block truncate">{dp.id}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>{dp.id}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </TableCell>
+                      <TableCell className="max-w-[120px] truncate">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="block truncate">{dp.category}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>{dp.category}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </TableCell>
+                      <TableCell className="max-w-[100px] truncate">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="block truncate">{dp.type}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>{dp.type}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </TableCell>
+                      <TableCell className="max-w-[220px] truncate">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="block truncate">{dp.questionText}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>{dp.questionText}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </TableCell>
+                      <TableCell className="max-w-[180px] truncate">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="block truncate">{dp.options && dp.options.length > 0 ? dp.options.join(", ") : "-"}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>{dp.options && dp.options.length > 0 ? dp.options.join(", ") : "-"}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">

@@ -213,9 +213,23 @@ const DataPointNode = ({ detail, category, onNodeClick, isHighlighted, nodeRef, 
       </Button>
       <div className="space-y-2">
         <div>
-          <h3 className="font-semibold text-sm truncate">{detail.id}</h3>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="block truncate max-w-[180px] font-semibold">{detail.id}</span>
+              </TooltipTrigger>
+              <TooltipContent>{detail.id}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           {detail.datapoint && (
-            <div className="text-xs text-muted-foreground truncate">{detail.datapoint}</div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="text-xs text-muted-foreground truncate max-w-[180px]">{detail.datapoint}</div>
+                </TooltipTrigger>
+                <TooltipContent>{detail.datapoint}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
           <div className="flex items-center gap-2 flex-nowrap mt-1">
             {detail.extract_only && (
@@ -252,7 +266,14 @@ const DataPointNode = ({ detail, category, onNodeClick, isHighlighted, nodeRef, 
         </div>
         
         {detail.questionText && (
-          <p className="text-xs text-muted-foreground">{detail.questionText}</p>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p className="text-xs text-muted-foreground truncate max-w-[180px]">{detail.questionText}</p>
+              </TooltipTrigger>
+              <TooltipContent>{detail.questionText}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
 
         <div className="flex flex-wrap gap-1">
@@ -306,7 +327,14 @@ const CategoryColumn = ({ category, details, onNodeClick, highlightedNode, nodeR
         onClick={() => setIsExpanded(!isExpanded)}
         style={{ backgroundColor: `${CATEGORY_COLORS[category.category as keyof typeof CATEGORY_COLORS]}20` }}
       >
-        <h2 className="font-semibold">{category.category}</h2>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <h2 className="font-semibold truncate max-w-[180px]">{category.category}</h2>
+            </TooltipTrigger>
+            <TooltipContent>{category.category}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <Button variant="ghost" size="sm">
           {isExpanded ? '−' : '+'}
         </Button>
