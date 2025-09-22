@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { OptionsConfigurator } from './OptionsConfigurator';
 import { BranchingRuleConfigurator } from './BranchingRuleConfigurator';
 import { DataPointCombobox } from './DataPointCombobox';
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 export interface NewDataPointDialogProps {
   open: boolean;
@@ -164,7 +165,7 @@ export function NewDataPointDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl w-full p-0">
+      <DialogContent className="max-w-2xl w-full">
         <DialogHeader>
           <DialogTitle>Add New Data Point</DialogTitle>
         </DialogHeader>
@@ -194,18 +195,15 @@ export function NewDataPointDialog({
             </div>
             <div>
               <Label className="block text-xs font-medium mb-1">Category *</Label>
-              <Select value={form.category} onValueChange={(value) => handleChange('category', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={form.category}
+                onValueChange={(value) => handleChange('category', value)}
+                options={categories.map((category) => ({ value: category, label: category }))}
+                placeholder="Select category"
+                searchPlaceholder="Search categories..."
+                allowCustom={true}
+                onCustomValueChange={(value) => handleChange('category', value)}
+              />
             </div>
             <div className="md:col-span-2">
               <Label className="block text-xs font-medium mb-1">Question Text</Label>

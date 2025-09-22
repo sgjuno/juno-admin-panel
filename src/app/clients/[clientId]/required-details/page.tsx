@@ -23,11 +23,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input as ShadInput } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import DocumentUploader from '@/components/DocumentUploader';
+import { UnifiedSelect } from '@/components/ui/UnifiedSelect';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 interface DetailRequired {
-  datapoint: string;
-  id: string;
-  prev: string | null;
+  datapoint?: string;
+  id?: string;
+  prev?: string | null;
   questionText?: string;
   options?: Record<string, string[] | string | null>;
   branchingRule?: Record<string, string[] | string>;
@@ -606,6 +608,8 @@ function BranchingRuleConfigurator({
   );
 }
 
+
+
 interface JunoDatapoint {
   id: string;
   type?: string;
@@ -613,6 +617,98 @@ interface JunoDatapoint {
   questionText: string;
   options?: string[];
   specificParsingRules?: string;
+}
+
+// Convert nested object structure to array structure for UI
+function convertDetailsRequiredToArray(detailsRequired: any): Category[] {
+  if (!detailsRequired) return [];
+  
+  // Handle old array format
+  if (Array.isArray(detailsRequired)) {
+    return detailsRequired;
+  }
+  
+  // Handle new nested object format
+  if (typeof detailsRequired === 'object') {
+    return Object.entries(detailsRequired)
+      .filter(([category, details]) => {
+        // Filter out non-category fields like _id, detailRequired, etc.
+        if (category.startsWith('_') || category === 'detailRequired' || 
+            !details || typeof details !== 'object' || Array.isArray(details)) {
+          return false;
+        }
+        
+        // Common category names that should be included
+        const validCategoryNames = [
+          'brokerDetails', 'companyDetails', 'propertyDetails', 'loanType', 
+          'leadApplicantDetails', 'applicantDetails', 'loanDetails', 'financialDetails'
+        ];
+        
+        // Check if this is a known category name OR if it looks like a category with data points
+        const isKnownCategory = validCategoryNames.includes(category);
+        const hasDataPoints = Object.values(details).some(value => 
+          value && typeof value === 'object' && !Array.isArray(value) && 
+          (value.questionText || value.options || value.extraction_notes || value.extract_externally !== undefined)
+        );
+        
+        return isKnownCategory || hasDataPoints;
+      })
+      .map(([category, details]) => ({
+        category,
+        detailRequired: Object.entries(details as Record<string, any>)
+          .filter(([datapoint, config]) => {
+            // Filter out non-datapoint fields
+            return config && typeof config === 'object' && !Array.isArray(config) && !datapoint.startsWith('_');
+          })
+          .map(([datapoint, config]) => ({
+            datapoint,
+            id: datapoint,
+            prev: config.prev || null,
+            questionText: config.questionText || '',
+            options: config.options || {},
+            branchingRule: config.branchingRule || {},
+            next_anyway: config.next_anyway || [],
+            extract_only: config.extract_only || false,
+            extract_externally: config.extract_externally || false,
+            default_value: config.default_value || '',
+            default_from_datapoint: config.default_from_datapoint || '',
+            extraction_notes: config.extraction_notes || '',
+            invalid_reason: config.invalid_reason || ''
+          }))
+      }));
+  }
+  
+  return [];
+}
+
+// Convert array structure back to nested object structure
+function convertArrayToDetailsRequired(categories: Category[]): Record<string, Record<string, any>> {
+  const result: Record<string, Record<string, any>> = {};
+  
+  categories.forEach(category => {
+    result[category.category] = {};
+    category.detailRequired.forEach(detail => {
+      if (detail.datapoint) {
+        const detailConfig: any = {};
+        
+        if (detail.questionText) detailConfig.questionText = detail.questionText;
+        if (detail.options && Object.keys(detail.options).length > 0) detailConfig.options = detail.options;
+        if (detail.branchingRule && Object.keys(detail.branchingRule).length > 0) detailConfig.branchingRule = detail.branchingRule;
+        if (detail.extract_externally) detailConfig.extract_externally = detail.extract_externally;
+        if (detail.default_from_datapoint) detailConfig.default_from_datapoint = detail.default_from_datapoint;
+        if (detail.extraction_notes) detailConfig.extraction_notes = detail.extraction_notes;
+        if (detail.prev) detailConfig.prev = detail.prev;
+        if (detail.extract_only) detailConfig.extract_only = detail.extract_only;
+        if (detail.default_value) detailConfig.default_value = detail.default_value;
+        if (detail.invalid_reason) detailConfig.invalid_reason = detail.invalid_reason;
+        if (detail.next_anyway && detail.next_anyway.length > 0) detailConfig.next_anyway = detail.next_anyway;
+        
+        result[category.category][detail.datapoint] = detailConfig;
+      }
+    });
+  });
+  
+  return result;
 }
 
 export default function RequiredDetailsPage({ params }: { params: Promise<{ clientId: string }> }) {
@@ -651,8 +747,21 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
         const clientsData = await clientsRes.json();
         
         setClient(clientData);
-        setDetailsRequired(clientData.detailsRequired || []);
-        setInitialDetailsRequired(clientData.detailsRequired || []);
+        
+        // Debug: Log the actual structure
+        console.log('Client data detailsRequired:', clientData.detailsRequired);
+        console.log('Type of detailsRequired:', typeof clientData.detailsRequired);
+        console.log('Is array:', Array.isArray(clientData.detailsRequired));
+        if (clientData.detailsRequired && typeof clientData.detailsRequired === 'object') {
+          console.log('Keys in detailsRequired:', Object.keys(clientData.detailsRequired));
+        }
+        
+        // Convert nested object to array structure for UI
+        const convertedDetails = convertDetailsRequiredToArray(clientData.detailsRequired || {});
+        console.log('Converted details:', convertedDetails);
+        setDetailsRequired(convertedDetails);
+        setInitialDetailsRequired(convertedDetails);
+        
         setJunoDatapoints(datapointsData);
         setExistingClients(clientsData.filter((c: any) => c._id !== clientId));
         setLoading(false);
@@ -683,9 +792,6 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
 
   const handleAddDetail = (categoryIndex: number) => {
     const newDetail: DetailRequired = {
-      datapoint: '',
-      id: '',
-      prev: null,
       questionText: '',
     };
     setDetailsRequired(detailsRequired.map((cat, i) => 
@@ -727,13 +833,18 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
     setSaving(true);
     setError('');
     setSuccess('');
+    
+    // Convert array structure back to nested object structure
+    const convertedDetails = convertArrayToDetailsRequired(detailsRequired);
+    
     const res = await fetch(`/api/clients/${clientId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ detailsRequired }),
+      body: JSON.stringify({ detailsRequired: convertedDetails }),
     });
     if (res.ok) {
       setSuccess('Saved successfully!');
+      setInitialDetailsRequired(detailsRequired);
     } else {
       setError('Failed to save.');
     }
@@ -745,8 +856,8 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
     const used = new Map<string, number>();
     detailsRequired.forEach(category => {
       category.detailRequired.forEach(detail => {
-        if (detail.id) {
-          used.set(detail.id, (used.get(detail.id) || 0) + 1);
+        if (detail.datapoint) {
+          used.set(detail.datapoint, (used.get(detail.datapoint) || 0) + 1);
         }
       });
     });
@@ -754,9 +865,9 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
   }, [detailsRequired]);
 
   // Check if a datapoint is duplicate
-  const isDuplicateDatapoint = (id: string | null | undefined) => {
-    if (!id) return false;
-    return (usedDatapoints.get(id) || 0) > 1;
+  const isDuplicateDatapoint = (datapoint: string | null | undefined) => {
+    if (!datapoint) return false;
+    return (usedDatapoints.get(datapoint) || 0) > 1;
   };
 
   const uniqueCategories = useMemo(() => {
@@ -769,8 +880,9 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
   }, [detailsRequired, initialDetailsRequired]);
 
   const handleConfigExtracted = (config: any) => {
-    if (config.detailsRequired && config.detailsRequired.length > 0) {
-      setDetailsRequired(config.detailsRequired);
+    if (config.detailsRequired && Object.keys(config.detailsRequired).length > 0) {
+      const convertedDetails = convertDetailsRequiredToArray(config.detailsRequired);
+      setDetailsRequired(convertedDetails);
       setSuccess('Configuration extracted successfully!');
     } else {
       setError('No required details were extracted from the document. Please check the document or try another file.');
@@ -783,7 +895,8 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
       const res = await fetch(`/api/clients/${sourceClientId}`);
       const sourceClient = await res.json();
       if (sourceClient.detailsRequired) {
-        setDetailsRequired(sourceClient.detailsRequired);
+        const convertedDetails = convertDetailsRequiredToArray(sourceClient.detailsRequired);
+        setDetailsRequired(convertedDetails);
         setSuccess('Configuration copied successfully!');
       }
     } catch (err) {
@@ -888,39 +1001,14 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
             <div className="flex gap-2">
               {detailsRequired.length === 0 ? (
                 <>
-                  <Popover open={categoryPopoverOpen} onOpenChange={setCategoryPopoverOpen}>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-64 justify-between">
-                        {selectedCategory || 'Select category'}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-64 p-0">
-                      <Command>
-                        <CommandInput placeholder="Search categories..." value={categorySearch} onValueChange={setCategorySearch} />
-                        <CommandList className="max-h-60 overflow-y-auto">
-                          {uniqueCategories.filter(cat => cat.toLowerCase().includes(categorySearch.toLowerCase())).map(cat => (
-                            <CommandItem key={cat} value={cat} onSelect={() => {
-                              setSelectedCategory(cat);
-                              setShowCustomCategory(false);
-                              setCategoryPopoverOpen(false);
-                              setCategorySearch('');
-                            }}>
-                              {cat}
-                            </CommandItem>
-                          ))}
-                          <CommandItem value="__other__" onSelect={() => {
-                            setShowCustomCategory(true);
-                            setSelectedCategory('');
-                            setCategoryPopoverOpen(false);
-                            setCategorySearch('');
-                          }}>
-                            Other (Add new)
-                          </CommandItem>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                  <UnifiedSelect
+                    value={selectedCategory}
+                    onChange={val => { if (typeof val === 'string') setSelectedCategory(val); }}
+                    options={uniqueCategories.map(cat => ({ value: cat, label: cat }))}
+                    placeholder="Select category"
+                    searchable
+                    className="w-64"
+                  />
                   {showCustomCategory && (
                     <Input
                       placeholder="New category name"
@@ -935,30 +1023,14 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
                 </>
               ) : (
                 <>
-                  <Popover open={categoryPopoverOpen} onOpenChange={setCategoryPopoverOpen}>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-64 justify-between">
-                        {newCategory || 'New category name'}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-64 p-0">
-                      <Command>
-                        <CommandInput placeholder="Search categories..." value={categorySearch} onValueChange={setCategorySearch} />
-                        <CommandList className="max-h-60 overflow-y-auto">
-                          {uniqueCategories.filter(cat => cat.toLowerCase().includes(categorySearch.toLowerCase())).map(cat => (
-                            <CommandItem key={cat} value={cat} onSelect={() => {
-                              setNewCategory(cat);
-                              setCategoryPopoverOpen(false);
-                              setCategorySearch('');
-                            }}>
-                              {cat}
-                            </CommandItem>
-                          ))}
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                  <UnifiedSelect
+                    value={newCategory}
+                    onChange={val => { if (typeof val === 'string') setNewCategory(val); }}
+                    options={uniqueCategories.map(cat => ({ value: cat, label: cat }))}
+                    placeholder="New category name"
+                    searchable
+                    className="w-64"
+                  />
                   <Button onClick={handleAddCategory} variant="outline" className="gap-2" disabled={!newCategory}>
                     <Plus className="w-4 h-4" /> Add Category
                   </Button>
@@ -1001,7 +1073,6 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
                           <AccordionContent className="w-full">
                             <Card className="p-4 w-full min-w-0">
                               <div className="space-y-4 min-w-0">
-                                {/* All detail configuration fields as before */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0">
                                   <div className="space-y-2 w-full min-w-0">
                                     <Label className="break-words whitespace-normal">Datapoint</Label>
@@ -1010,25 +1081,11 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
                                       onChange={(value) => handleDetailChange(categoryIndex, detailIndex, 'datapoint', value)}
                                       placeholder="Select datapoints"
                                       dataPoints={junoDatapoints.map(dp => dp.id)}
-                                      currentDatapointId={detail.id}
-                                      isDuplicate={isDuplicateDatapoint(detail.id)}
+                                      currentDatapointId={detail.datapoint || ''}
+                                      isDuplicate={isDuplicateDatapoint(detail.datapoint)}
                                       isIdField={false}
                                       usedDatapoints={usedDatapoints}
                                       multi={true}
-                                    />
-                                  </div>
-                                  <div className="space-y-2 w-full min-w-0">
-                                    <Label className="break-words whitespace-normal">ID</Label>
-                                    <DataPointCombobox
-                                      value={detail.id}
-                                      onChange={(value) => handleDetailChange(categoryIndex, detailIndex, 'id', value)}
-                                      placeholder="Select a datapoint ID"
-                                      dataPoints={junoDatapoints.map(dp => dp.id)}
-                                      currentDatapointId={detail.id}
-                                      isDuplicate={isDuplicateDatapoint(detail.id)}
-                                      isIdField={true}
-                                      usedDatapoints={usedDatapoints}
-                                      multi={false}
                                     />
                                   </div>
                                 </div>
@@ -1049,7 +1106,7 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
                                       onChange={(value) => handleDetailChange(categoryIndex, detailIndex, 'prev', value)}
                                       placeholder="Select previous question"
                                       dataPoints={junoDatapoints.map(dp => dp.id)}
-                                      currentDatapointId={detail.id}
+                                      currentDatapointId={detail.datapoint || ''}
                                       isDuplicate={isDuplicateDatapoint(detail.prev)}
                                       isIdField={true}
                                       usedDatapoints={usedDatapoints}
@@ -1057,28 +1114,28 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
                                     />
                                   </div>
                                   <div className="space-y-2 w-full min-w-0">
-                                    <Label className="break-words whitespace-normal">Default Value</Label>
-                                    <Input
-                                      value={detail.default_value || ''}
-                                      onChange={(e) => handleDetailChange(categoryIndex, detailIndex, 'default_value', e.target.value)}
-                                      placeholder="e.g., personal (assumed)"
-                                      className="w-full"
-                                    />
-                                  </div>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0">
-                                  <div className="space-y-2 w-full min-w-0">
                                     <Label className="break-words whitespace-normal">Default From Datapoint</Label>
                                     <DataPointCombobox
                                       value={detail.default_from_datapoint}
                                       onChange={(value) => handleDetailChange(categoryIndex, detailIndex, 'default_from_datapoint', value)}
                                       placeholder="Select datapoint"
                                       dataPoints={junoDatapoints.map(dp => dp.id)}
-                                      currentDatapointId={detail.id}
+                                      currentDatapointId={detail.datapoint || ''}
                                       isDuplicate={isDuplicateDatapoint(detail.default_from_datapoint)}
                                       isIdField={true}
                                       usedDatapoints={usedDatapoints}
                                       multi={false}
+                                    />
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0">
+                                  <div className="space-y-2 w-full min-w-0">
+                                    <Label className="break-words whitespace-normal">Default Value</Label>
+                                    <Input
+                                      value={detail.default_value || ''}
+                                      onChange={(e) => handleDetailChange(categoryIndex, detailIndex, 'default_value', e.target.value)}
+                                      placeholder="e.g., personal (assumed)"
+                                      className="w-full"
                                     />
                                   </div>
                                   <div className="space-y-2 w-full min-w-0">
@@ -1159,10 +1216,7 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
                       ))}
                     </Accordion>
                     <Button
-                      onClick={() => {
-                        setAddDetailDialogOpen(categoryIndex);
-                        setSelectedDetailDatapoints([]);
-                      }}
+                      onClick={() => handleAddDetail(categoryIndex)}
                       variant="outline"
                       className="w-full gap-2"
                     >
@@ -1173,60 +1227,6 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
               </AccordionItem>
             ))}
           </Accordion>
-          {/* Add Detail Dialog */}
-          <Dialog open={addDetailDialogOpen !== null} onOpenChange={open => { if (!open) setAddDetailDialogOpen(null); }}>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Select Data Points to Add</DialogTitle>
-              </DialogHeader>
-              {addDetailDialogOpen !== null && (
-                <DataPointCombobox
-                  value={selectedDetailDatapoints}
-                  onChange={val => {
-                    if (val == null) setSelectedDetailDatapoints([]);
-                    else if (Array.isArray(val)) setSelectedDetailDatapoints(val);
-                    else setSelectedDetailDatapoints([val]);
-                  }}
-                  placeholder="Select data points"
-                  dataPoints={junoDatapoints.map(dp => dp.id)}
-                  currentDatapointId={''}
-                  multi={true}
-                />
-              )}
-              <div className="flex justify-end gap-2 mt-4">
-                <Button variant="outline" onClick={() => setAddDetailDialogOpen(null)}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => {
-                    if (addDetailDialogOpen !== null && selectedDetailDatapoints.length > 0) {
-                      setDetailsRequired(detailsRequired.map((cat, i) =>
-                        i === addDetailDialogOpen
-                          ? {
-                              ...cat,
-                              detailRequired: [
-                                ...cat.detailRequired,
-                                ...selectedDetailDatapoints.map(dpId => ({
-                                  datapoint: dpId,
-                                  id: dpId,
-                                  prev: null,
-                                  questionText: junoDatapoints.find(dp => dp.id === dpId)?.questionText || '',
-                                }))
-                              ]
-                            }
-                          : cat
-                      ));
-                      setAddDetailDialogOpen(null);
-                      setSelectedDetailDatapoints([]);
-                    }
-                  }}
-                  disabled={selectedDetailDatapoints.length === 0}
-                >
-                  Add
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
         </CardContent>
       </Card>
     </div>

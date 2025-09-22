@@ -55,9 +55,10 @@ function StatusIndicator({ active }: { active: boolean }) {
 }
 
 // Server component
-export default async function CRMIntegrationPage({ params }: any) {
-  const { clientId } = params;
-  const cookieHeader = cookies().toString();
+export default async function CRMIntegrationPage({ params }: { params: Promise<{ clientId: string }> }) {
+  const { clientId } = await params;
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore.toString();
   
   // Fetch data directly on the server
   const res = await fetch(`${getBaseUrl()}/api/clients/${clientId}`, {

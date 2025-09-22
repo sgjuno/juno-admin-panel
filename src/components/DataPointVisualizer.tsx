@@ -136,8 +136,8 @@ const DataPointNode = ({ detail, category, onNodeClick, isHighlighted, nodeRef, 
     setError(null);
     setSuccess(false);
     try {
-      // Fetch latest detailsRequired
-      const resGet = await fetch(`/api/clients/${clientId}`);
+      // Fetch latest detailsRequired in array format
+      const resGet = await fetch(`/api/clients/${clientId}/config`);
       const clientData = await resGet.json();
       if (!resGet.ok || !clientData.detailsRequired) throw new Error('Failed to fetch client data');
       // Find and update the relevant data point
@@ -170,7 +170,7 @@ const DataPointNode = ({ detail, category, onNodeClick, isHighlighted, nodeRef, 
       // --- End update prev ---
 
       // PUT the updated array
-      const resPut = await fetch(`/api/clients/${clientId}`, {
+      const resPut = await fetch(`/api/clients/${clientId}/config`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ detailsRequired: updatedDetailsRequired }),
@@ -432,8 +432,8 @@ export default function DataPointVisualizer({ detailsRequired, clientId }: DataP
   // Handle creating new data point
   const handleCreateNewDataPoint = async (newDataPoint: any) => {
     try {
-      // Fetch latest detailsRequired
-      const resGet = await fetch(`/api/clients/${clientId}`);
+      // Fetch latest detailsRequired in array format
+      const resGet = await fetch(`/api/clients/${clientId}/config`);
       const clientData = await resGet.json();
       if (!resGet.ok || !clientData.detailsRequired) throw new Error('Failed to fetch client data');
       
@@ -470,7 +470,7 @@ export default function DataPointVisualizer({ detailsRequired, clientId }: DataP
       // --- End update prev ---
       
       // PUT the updated array
-      const resPut = await fetch(`/api/clients/${clientId}`, {
+      const resPut = await fetch(`/api/clients/${clientId}/config`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ detailsRequired: updatedDetailsRequired }),
