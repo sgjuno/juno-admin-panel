@@ -143,4 +143,90 @@ export interface Client {
   };
   requiredDocuments?: string[];
   detailsRequired?: Record<string, Record<string, any>>;
+  emailTesting?: {
+    isEnabled?: boolean;
+    testEnvironment?: 'sandbox' | 'production';
+    dedicatedTestEmails?: string[];
+    gmailConfig?: {
+      serviceAccountEmail?: string;
+      adminEmail?: string;
+      testEmailPrefix?: string;
+      // OAuth fields
+      accessToken?: string;
+      refreshToken?: string;
+      tokenExpiry?: number;
+      isAuthorized?: boolean;
+      authorizedEmail?: string;
+    };
+    testCases?: EmailTestCase[];
+    testResults?: EmailTestResult[];
+    analytics?: {
+      totalTestsRun?: number;
+      overallSuccessRate?: number;
+      averageAccuracy?: number;
+      lastTestRun?: Date;
+      trendData?: Array<{
+        date: Date;
+        successRate: number;
+        accuracy: number;
+        testsRun: number;
+      }>;
+    };
+    notifications?: {
+      onTestComplete?: boolean;
+      onTestFailure?: boolean;
+      channels?: ('email' | 'slack' | 'webhook')[];
+      webhookUrl?: string;
+      slackChannel?: string;
+    };
+  };
+}
+
+export interface EmailTestCase {
+  id?: string;
+  name: string;
+  description?: string;
+  category?: string;
+  emailTemplate: {
+    subject: string;
+    body: string;
+    attachments?: Array<{
+      filename: string;
+      contentType: string;
+      content: string; // base64 encoded
+    }>;
+  };
+  expectedExtraction: Record<string, any>;
+  metadata?: {
+    difficulty?: 'easy' | 'medium' | 'hard';
+    lastRun?: Date;
+    successRate?: number;
+    averageAccuracy?: number;
+  };
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface EmailTestResult {
+  id?: string;
+  testCaseId: string;
+  executedAt: Date;
+  status: 'pass' | 'fail' | 'partial';
+  emailSent: boolean;
+  emailDelivered: boolean;
+  responseReceived: boolean;
+  aiExtraction: Record<string, any>;
+  validationResults: Array<{
+    field: string;
+    expected: string;
+    actual: string;
+    match: boolean;
+    confidence: number;
+  }>;
+  performance: {
+    emailDeliveryTime: number;
+    aiProcessingTime: number;
+    totalTime: number;
+  };
+  errorDetails?: string;
 } 

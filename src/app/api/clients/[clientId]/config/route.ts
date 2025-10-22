@@ -80,7 +80,7 @@ export async function GET(
     const { clientId } = params;
     console.log('Config API - Fetching client:', clientId);
 
-    const client = await Client.findById(clientId).select('detailsRequired').lean();
+    const client: any = await Client.findById(clientId).select('detailsRequired').lean();
     console.log('Config API - Client found:', !!client);
     console.log('Config API - Raw detailsRequired type:', typeof client?.detailsRequired);
     console.log('Config API - Raw detailsRequired keys:', client?.detailsRequired ? Object.keys(client.detailsRequired) : 'none');

@@ -134,6 +134,137 @@ const clientSchema = new mongoose.Schema({
   detailsRequired: {
     type: mongoose.Schema.Types.Mixed,
     default: {}
+  },
+  emailTesting: {
+    isEnabled: { type: Boolean, default: false },
+    testEnvironment: {
+      type: String,
+      enum: ['sandbox', 'production'],
+      default: 'sandbox'
+    },
+    dedicatedTestEmails: [String],
+    gmailConfig: {
+      serviceAccountEmail: String,
+      adminEmail: String,
+      testEmailPrefix: String,
+      // OAuth fields
+      accessToken: String,
+      refreshToken: String,
+      tokenExpiry: Number,
+      isAuthorized: { type: Boolean, default: false },
+      authorizedEmail: String
+    },
+    testCases: [{
+      id: String,
+      name: String,
+      description: String,
+      category: String,
+      emailTemplate: {
+        subject: String,
+        body: String,
+        attachments: [{
+          filename: String,
+          contentType: String,
+          content: String // base64 encoded
+        }]
+      },
+      expectedExtraction: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
+      },
+      metadata: {
+        difficulty: { type: String, enum: ['easy', 'medium', 'hard'], default: 'medium' },
+        lastRun: Date,
+        successRate: Number,
+        averageAccuracy: Number
+      },
+      createdAt: { type: Date, default: Date.now },
+      updatedAt: { type: Date, default: Date.now }
+    }],
+    testResults: [{
+      id: String,
+      testCaseId: String,
+      executedAt: Date,
+      status: { type: String, enum: ['pass', 'fail', 'partial'], required: true },
+      emailSent: Boolean,
+      emailDelivered: Boolean,
+      responseReceived: Boolean,
+      aiExtraction: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
+      },
+      validationResults: [{
+        field: String,
+        expected: String,
+        actual: String,
+        match: Boolean,
+        confidence: Number
+      }],
+      performance: {
+        emailDeliveryTime: Number,
+        aiProcessingTime: Number,
+        totalTime: Number
+      },
+      errorDetails: String
+    }],
+    // New fields for enhanced functionality
+    syntheticDataConfig: {
+      enabled: { type: Boolean, default: false },
+      industry: { type: String, enum: ['finance', 'lending', 'broker'], default: 'finance' },
+      scenarioTypes: [String],
+      generationHistory: [{
+        timestamp: Date,
+        scenarioType: String,
+        dataCount: Number,
+        status: { type: String, enum: ['success', 'failed'] }
+      }]
+    },
+
+    aiAnalysisConfig: {
+      enabled: { type: Boolean, default: false },
+      validationThreshold: { type: Number, default: 0.85 },
+      autoRetryOnFailure: { type: Boolean, default: false },
+      analysisProviders: [String],
+      lastAnalysis: Date
+    },
+
+    executionMetrics: {
+      queueSize: { type: Number, default: 0 },
+      parallelLimit: { type: Number, default: 3 },
+      retryAttempts: { type: Number, default: 1 },
+      timeoutSettings: {
+        emailDelivery: { type: Number, default: 10000 },
+        aiProcessing: { type: Number, default: 20000 },
+        total: { type: Number, default: 30000 }
+      }
+    },
+
+    advancedAnalytics: {
+      enabled: { type: Boolean, default: false },
+      retentionPeriod: { type: Number, default: 90 }, // days
+      trendAnalysis: { type: Boolean, default: false },
+      complianceReporting: { type: Boolean, default: false }
+    },
+
+    analytics: {
+      totalTestsRun: { type: Number, default: 0 },
+      overallSuccessRate: { type: Number, default: 0 },
+      averageAccuracy: { type: Number, default: 0 },
+      lastTestRun: Date,
+      trendData: [{
+        date: Date,
+        successRate: Number,
+        accuracy: Number,
+        testsRun: Number
+      }]
+    },
+    notifications: {
+      onTestComplete: { type: Boolean, default: true },
+      onTestFailure: { type: Boolean, default: true },
+      channels: [{ type: String, enum: ['email', 'slack', 'webhook'] }],
+      webhookUrl: String,
+      slackChannel: String
+    }
   }
 }, {
   timestamps: true

@@ -25,6 +25,8 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import DocumentUploader from '@/components/DocumentUploader';
 import { UnifiedSelect } from '@/components/ui/UnifiedSelect';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { JunoDataPointsModal } from '@/components/required-details/JunoDataPointsModal';
+import { Database } from 'lucide-react';
 
 interface DetailRequired {
   datapoint?: string;
@@ -732,6 +734,8 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
   const [showCopyConfig, setShowCopyConfig] = useState(false);
   const [selectedSourceClient, setSelectedSourceClient] = useState('');
   const [existingClients, setExistingClients] = useState<any[]>([]);
+  const [showDataPointsModal, setShowDataPointsModal] = useState(false);
+  const [currentEditingDetail, setCurrentEditingDetail] = useState<{ categoryIndex: number; detailIndex: number } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -802,11 +806,30 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
   };
 
   const handleRemoveDetail = (categoryIndex: number, detailIndex: number) => {
-    setDetailsRequired(detailsRequired.map((cat, i) => 
-      i === categoryIndex 
-        ? { ...cat, detailRequired: cat.detailRequired.filter((_, j) => j !== detailIndex) }
-        : cat
-    ));
+    // Get the data point being removed
+    const dataPointToRemove = detailsRequired[categoryIndex].detailRequired[detailIndex];
+    const dataPointId = dataPointToRemove?.datapoint;
+    
+    if (dataPointId) {
+      // First, clean up all references to the data point being removed
+      const cleanedDetails = cleanupDeletedDataPoint(detailsRequired, dataPointId);
+      
+      // Then remove the data point from the array
+      const updatedDetails = cleanedDetails.map((cat, i) => 
+        i === categoryIndex 
+          ? { ...cat, detailRequired: cat.detailRequired.filter((_, j) => j !== detailIndex) }
+          : cat
+      );
+      
+      setDetailsRequired(updatedDetails);
+    } else {
+      // Fallback to simple removal if no data point ID
+      setDetailsRequired(detailsRequired.map((cat, i) => 
+        i === categoryIndex 
+          ? { ...cat, detailRequired: cat.detailRequired.filter((_, j) => j !== detailIndex) }
+          : cat
+      ));
+    }
   };
 
   const handleDetailChange = (
@@ -815,6 +838,8 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
     field: keyof DetailRequired,
     value: any
   ) => {
+    console.log(`handleDetailChange: category ${categoryIndex}, detail ${detailIndex}, field ${field}, value:`, value);
+    
     setDetailsRequired(detailsRequired.map((cat, i) => 
       i === categoryIndex 
         ? {
@@ -829,13 +854,122 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
     ));
   };
 
+  // Utility function to clean up previousQuestion fields when option mappings change
+  const cleanupPreviousQuestionFields = (detailsRequired: Category[]) => {
+    // Create a deep copy to avoid mutating the original array
+    const updatedDetails = JSON.parse(JSON.stringify(detailsRequired));
+    
+    // Process each category and detail to clean up prev fields
+    updatedDetails.forEach((category: Category) => {
+      category.detailRequired.forEach(detail => {
+        const options = detail.options || {};
+        const targetIds = new Set<string>();
+        
+        // Collect all data points referenced in the current options
+        Object.values(options).forEach((val: any) => {
+          if (Array.isArray(val)) {
+            val.forEach((v) => v && targetIds.add(v));
+          } else if (typeof val === 'string' && val) {
+            targetIds.add(val);
+          }
+        });
+
+        // Get the old options to find previously referenced data points
+        const oldOptions = initialDetailsRequired
+          .find(cat => cat.category === category.category)
+          ?.detailRequired.find(d => d.datapoint === detail.datapoint)?.options || {};
+        const oldTargetIds = new Set<string>();
+        Object.values(oldOptions).forEach((val: any) => {
+          if (Array.isArray(val)) {
+            val.forEach((v) => v && oldTargetIds.add(v));
+          } else if (typeof val === 'string' && val) {
+            oldTargetIds.add(val);
+          }
+        });
+
+        // Find data points that were previously referenced but are no longer referenced
+        const removedTargetIds = new Set([...oldTargetIds].filter(id => !targetIds.has(id)));
+
+        // Clean up prev field for data points that are no longer referenced
+        if (removedTargetIds.size > 0) {
+          updatedDetails.forEach((cat: Category) => {
+            cat.detailRequired.forEach((d: DetailRequired) => {
+              if (removedTargetIds.has(d.datapoint || '') && d.prev === detail.datapoint) {
+                d.prev = null;
+              }
+            });
+          });
+        }
+      });
+    });
+
+    return updatedDetails;
+  };
+
+  // Utility function to clean up all references to a deleted data point
+  const cleanupDeletedDataPoint = (detailsRequired: Category[], deletedDataPointId: string) => {
+    const updatedDetails = JSON.parse(JSON.stringify(detailsRequired));
+    
+    // Remove the deleted data point from all option mappings and branching rules
+    updatedDetails.forEach((category: Category) => {
+      category.detailRequired.forEach((detail: DetailRequired) => {
+        // Clean up options
+        if (detail.options) {
+          const cleanedOptions: any = {};
+          Object.entries(detail.options).forEach(([key, value]) => {
+            if (Array.isArray(value)) {
+              const filteredValue = value.filter((v: string) => v !== deletedDataPointId);
+              if (filteredValue.length > 0) {
+                cleanedOptions[key] = filteredValue;
+              }
+            } else if (typeof value === 'string' && value !== deletedDataPointId) {
+              cleanedOptions[key] = value;
+            }
+          });
+          detail.options = cleanedOptions;
+        }
+
+        // Clean up branching rules
+        if (detail.branchingRule) {
+          const cleanedBranchingRule: any = {};
+          Object.entries(detail.branchingRule).forEach(([key, value]) => {
+            if (Array.isArray(value)) {
+              const filteredValue = value.filter((v: string) => v !== deletedDataPointId);
+              if (filteredValue.length > 0) {
+                cleanedBranchingRule[key] = filteredValue;
+              }
+            } else if (typeof value === 'string' && value !== deletedDataPointId) {
+              cleanedBranchingRule[key] = value;
+            }
+          });
+          detail.branchingRule = cleanedBranchingRule;
+        }
+
+        // Clean up next_anyway
+        if (detail.next_anyway) {
+          detail.next_anyway = detail.next_anyway.filter((v: string) => v !== deletedDataPointId);
+        }
+
+        // Clean up prev field if it references the deleted data point
+        if (detail.prev === deletedDataPointId) {
+          detail.prev = null;
+        }
+      });
+    });
+
+    return updatedDetails;
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setError('');
     setSuccess('');
     
+    // Clean up previousQuestion fields before saving
+    const cleanedDetails = cleanupPreviousQuestionFields(detailsRequired);
+    
     // Convert array structure back to nested object structure
-    const convertedDetails = convertArrayToDetailsRequired(detailsRequired);
+    const convertedDetails = convertArrayToDetailsRequired(cleanedDetails);
     
     const res = await fetch(`/api/clients/${clientId}`, {
       method: 'PUT',
@@ -844,7 +978,7 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
     });
     if (res.ok) {
       setSuccess('Saved successfully!');
-      setInitialDetailsRequired(detailsRequired);
+      setInitialDetailsRequired(cleanedDetails);
     } else {
       setError('Failed to save.');
     }
@@ -905,6 +1039,62 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
     setShowCopyConfig(false);
   };
 
+  const handleDatapointSelection = (datapoint: JunoDatapoint) => {
+    console.log('=== DATAPOINT SELECTION DEBUG ===');
+    console.log('Full datapoint object:', JSON.stringify(datapoint, null, 2));
+    console.log('Datapoint ID:', datapoint.id);
+    console.log('Question Text:', datapoint.questionText);
+    console.log('Options:', datapoint.options);
+    console.log('Specific Parsing Rules:', datapoint.specificParsingRules);
+    console.log('currentEditingDetail:', currentEditingDetail);
+    
+    if (currentEditingDetail) {
+      const { categoryIndex, detailIndex } = currentEditingDetail;
+      
+      console.log('Setting datapoint for category', categoryIndex, 'detail', detailIndex);
+      
+      // Set the datapoint ID
+      console.log('Setting datapoint ID:', datapoint.id);
+      handleDetailChange(categoryIndex, detailIndex, 'datapoint', datapoint.id);
+      
+      // Set the question text
+      console.log('Setting questionText:', datapoint.questionText);
+      if (datapoint.questionText) {
+        handleDetailChange(categoryIndex, detailIndex, 'questionText', datapoint.questionText);
+      }
+      
+      // Set options if they exist
+      console.log('Checking options:', datapoint.options);
+      if (datapoint.options && datapoint.options.length > 0) {
+        console.log('Setting options:', datapoint.options);
+        handleDetailChange(categoryIndex, detailIndex, 'options', datapoint.options);
+      }
+      
+      // Set extraction notes from specificParsingRules if available
+      console.log('Checking specificParsingRules:', datapoint.specificParsingRules);
+      if (datapoint.specificParsingRules) {
+        console.log('Setting extraction_notes:', datapoint.specificParsingRules);
+        handleDetailChange(categoryIndex, detailIndex, 'extraction_notes', datapoint.specificParsingRules);
+      }
+      
+      // Show success message with details of what was copied
+      const copiedFields = ['ID'];
+      if (datapoint.questionText) copiedFields.push('Question Text');
+      if (datapoint.options && datapoint.options.length > 0) copiedFields.push('Options');
+      if (datapoint.specificParsingRules) copiedFields.push('Extraction Notes');
+      
+      setSuccess(`DataPoint information copied successfully! Fields copied: ${copiedFields.join(', ')}`);
+      setTimeout(() => setSuccess(''), 3000); // Clear success message after 3 seconds
+      
+      // Clear currentEditingDetail after a short delay to ensure state updates are processed
+      setTimeout(() => {
+        setCurrentEditingDetail(null);
+      }, 100);
+    } else {
+      console.warn('No currentEditingDetail set when trying to select datapoint');
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-6 p-6">
@@ -940,6 +1130,14 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowDataPointsModal(true)}
+            className="gap-2"
+          >
+            <Database className="w-4 h-4" />
+            View DataPoints
+          </Button>
           <Button
             variant="outline"
             onClick={() => setShowDocumentUploader(!showDocumentUploader)}
@@ -1075,10 +1273,73 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
                               <div className="space-y-4 min-w-0">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0">
                                   <div className="space-y-2 w-full min-w-0">
-                                    <Label className="break-words whitespace-normal">Datapoint</Label>
+                                    <Label className="break-words whitespace-normal flex items-center justify-between">
+                                      Datapoint
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          console.log('Browse button clicked for category', categoryIndex, 'detail', detailIndex);
+                                          setCurrentEditingDetail({ categoryIndex, detailIndex });
+                                          setShowDataPointsModal(true);
+                                        }}
+                                        className="text-xs h-6 px-2"
+                                      >
+                                        <Database className="w-3 h-3 mr-1" />
+                                        Browse
+                                      </Button>
+                                    </Label>
                                     <DataPointCombobox
                                       value={detail.datapoint}
-                                      onChange={(value) => handleDetailChange(categoryIndex, detailIndex, 'datapoint', value)}
+                                      onChange={(value) => {
+                                        // Handle the datapoint ID change
+                                        handleDetailChange(categoryIndex, detailIndex, 'datapoint', value);
+                                        
+                                        // Auto-populate other fields from junoDatapoints collection
+                                        if (typeof value === 'string' && value) {
+                                          const selectedDatapoint = junoDatapoints.find(dp => dp.id === value);
+                                          console.log('=== DROPDOWN SELECTION DEBUG ===');
+                                          console.log('Selected value:', value);
+                                          console.log('Available junoDatapoints:', junoDatapoints.map(dp => dp.id));
+                                          console.log('Found datapoint:', selectedDatapoint);
+                                          
+                                          if (selectedDatapoint) {
+                                            console.log('Full datapoint from dropdown:', JSON.stringify(selectedDatapoint, null, 2));
+                                            
+                                            // Set the question text
+                                            if (selectedDatapoint.questionText) {
+                                              console.log('Setting questionText from dropdown:', selectedDatapoint.questionText);
+                                              handleDetailChange(categoryIndex, detailIndex, 'questionText', selectedDatapoint.questionText);
+                                            }
+                                            
+                                            // Set options if they exist
+                                            if (selectedDatapoint.options && selectedDatapoint.options.length > 0) {
+                                              console.log('Setting options from dropdown:', selectedDatapoint.options);
+                                              handleDetailChange(categoryIndex, detailIndex, 'options', selectedDatapoint.options);
+                                            }
+                                            
+                                            // Set extraction notes from specificParsingRules if available
+                                            if (selectedDatapoint.specificParsingRules) {
+                                              console.log('Setting extraction_notes from dropdown:', selectedDatapoint.specificParsingRules);
+                                              handleDetailChange(categoryIndex, detailIndex, 'extraction_notes', selectedDatapoint.specificParsingRules);
+                                            }
+                                            
+                                            // Show success message
+                                            const copiedFields = [];
+                                            if (selectedDatapoint.questionText) copiedFields.push('Question Text');
+                                            if (selectedDatapoint.options && selectedDatapoint.options.length > 0) copiedFields.push('Options');
+                                            if (selectedDatapoint.specificParsingRules) copiedFields.push('Extraction Notes');
+                                            
+                                            if (copiedFields.length > 0) {
+                                              setSuccess(`DataPoint information auto-populated! Fields copied: ${copiedFields.join(', ')}`);
+                                              setTimeout(() => setSuccess(''), 3000);
+                                            }
+                                          } else {
+                                            console.warn('No datapoint found with ID:', value);
+                                          }
+                                        }
+                                      }}
                                       placeholder="Select datapoints"
                                       dataPoints={junoDatapoints.map(dp => dp.id)}
                                       currentDatapointId={detail.datapoint || ''}
@@ -1229,6 +1490,15 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
           </Accordion>
         </CardContent>
       </Card>
+
+      {/* JunoDataPoints Modal */}
+      <JunoDataPointsModal
+        open={showDataPointsModal}
+        onOpenChange={setShowDataPointsModal}
+        onSelectDatapoint={handleDatapointSelection}
+        selectedDatapoints={Array.from(usedDatapoints.keys())}
+        clientId={clientId}
+      />
     </div>
   );
 } 

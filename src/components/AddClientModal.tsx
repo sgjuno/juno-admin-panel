@@ -34,7 +34,7 @@ export default function AddClientModal({ isOpen, onClose, onAdd, existingClients
     type: 'BROKER',
     website: '',
     companyName: '',
-    companyNumber: '',
+    companyNumber: 0,
     address: '',
     country: '',
     isActive: true,

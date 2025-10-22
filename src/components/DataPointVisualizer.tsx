@@ -152,6 +152,8 @@ const DataPointNode = ({ detail, category, onNodeClick, isHighlighted, nodeRef, 
       const currentId = updatedDetail.id || detail.id;
       const options = updatedDetail.options || {};
       const targetIds = new Set<string>();
+      
+      // Collect all data points referenced in the new options
       Object.values(options).forEach((val: any) => {
         if (Array.isArray(val)) {
           val.forEach((v) => v && targetIds.add(v));
@@ -159,6 +161,32 @@ const DataPointNode = ({ detail, category, onNodeClick, isHighlighted, nodeRef, 
           targetIds.add(val);
         }
       });
+
+      // Get the old options to find previously referenced data points
+      const oldOptions = detail.options || {};
+      const oldTargetIds = new Set<string>();
+      Object.values(oldOptions).forEach((val: any) => {
+        if (Array.isArray(val)) {
+          val.forEach((v) => v && oldTargetIds.add(v));
+        } else if (typeof val === 'string' && val) {
+          oldTargetIds.add(val);
+        }
+      });
+
+      // Find data points that were previously referenced but are no longer referenced
+      const removedTargetIds = new Set([...oldTargetIds].filter(id => !targetIds.has(id)));
+
+      // Clean up prev field for data points that are no longer referenced
+      if (removedTargetIds.size > 0) {
+        updatedDetailsRequired = updatedDetailsRequired.map((cat: any) => ({
+          ...cat,
+          detailRequired: cat.detailRequired.map((d: any) =>
+            removedTargetIds.has(d.id) && d.prev === currentId ? { ...d, prev: null } : d
+          )
+        }));
+      }
+
+      // Set prev field for newly referenced data points
       if (targetIds.size > 0) {
         updatedDetailsRequired = updatedDetailsRequired.map((cat: any) => ({
           ...cat,
