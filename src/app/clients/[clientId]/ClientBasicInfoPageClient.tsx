@@ -21,6 +21,19 @@ interface Client {
   isActive: boolean;
   clientCode: string;
   country: string;
+  companyNumber: number;
+  address: string;
+  emailDomain: string;
+  nylasGrantId?: string;
+  emailAction?: string;
+  adminEmail?: string[];
+  enquireEmail?: string;
+  carFinanceDomain: boolean;
+  propertyFinanceDomain: boolean;
+  smeFinanceDomain: boolean;
+  onboardedAt?: number;
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 export default function ClientBasicInfoPageClient({ clientId }: { clientId: string }) {
@@ -44,14 +57,20 @@ export default function ClientBasicInfoPageClient({ clientId }: { clientId: stri
     setClient({ ...client, [e.target.name]: e.target.value });
   };
 
+  const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!client) return;
+    const value = e.target.value === '' ? undefined : Number(e.target.value);
+    setClient({ ...client, [e.target.name]: value });
+  };
+
   const handleSelectChange = (name: string, value: string) => {
     if (!client) return;
     setClient({ ...client, [name]: value });
   };
 
-  const handleToggle = (checked: boolean) => {
+  const handleToggle = (field: string, checked: boolean) => {
     if (!client) return;
-    setClient({ ...client, isActive: checked });
+    setClient({ ...client, [field]: checked });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -185,6 +204,27 @@ export default function ClientBasicInfoPageClient({ clientId }: { clientId: stri
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="companyNumber">Company Number</Label>
+                <Input
+                  id="companyNumber"
+                  name="companyNumber"
+                  type="number"
+                  value={client.companyNumber || ''}
+                  onChange={handleNumberChange}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="emailDomain">Email Domain</Label>
+                <Input
+                  id="emailDomain"
+                  name="emailDomain"
+                  value={client.emailDomain}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="country">Country</Label>
                 <Input
                   id="country"
@@ -195,17 +235,77 @@ export default function ClientBasicInfoPageClient({ clientId }: { clientId: stri
               </div>
 
               <div className="space-y-2">
-                <Label>Status</Label>
+                <Label htmlFor="address">Address</Label>
+                <Input
+                  id="address"
+                  name="address"
+                  value={client.address}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="nylasGrantId">Nylas Grant ID</Label>
+                <Input
+                  id="nylasGrantId"
+                  name="nylasGrantId"
+                  value={client.nylasGrantId || ''}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="enquireEmail">Enquire Email</Label>
+                <Input
+                  id="enquireEmail"
+                  name="enquireEmail"
+                  value={client.enquireEmail || ''}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Domain Settings</h3>
+              <div className="grid gap-4 md:grid-cols-3">
                 <div className="flex items-center space-x-2">
                   <Switch
-                    id="isActive"
-                    checked={client.isActive}
-                    onCheckedChange={handleToggle}
+                    id="carFinanceDomain"
+                    checked={client.carFinanceDomain}
+                    onCheckedChange={(checked) => handleToggle('carFinanceDomain', checked)}
                   />
-                  <Label htmlFor="isActive" className="text-muted-foreground">
-                    {client.isActive ? 'Active' : 'Inactive'}
-                  </Label>
+                  <Label htmlFor="carFinanceDomain">Car Finance Domain</Label>
                 </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="propertyFinanceDomain"
+                    checked={client.propertyFinanceDomain}
+                    onCheckedChange={(checked) => handleToggle('propertyFinanceDomain', checked)}
+                  />
+                  <Label htmlFor="propertyFinanceDomain">Property Finance Domain</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="smeFinanceDomain"
+                    checked={client.smeFinanceDomain}
+                    onCheckedChange={(checked) => handleToggle('smeFinanceDomain', checked)}
+                  />
+                  <Label htmlFor="smeFinanceDomain">SME Finance Domain</Label>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="isActive"
+                  checked={client.isActive}
+                  onCheckedChange={(checked) => handleToggle('isActive', checked)}
+                />
+                <Label htmlFor="isActive" className="text-muted-foreground">
+                  {client.isActive ? 'Active' : 'Inactive'}
+                </Label>
               </div>
             </div>
 

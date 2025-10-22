@@ -7,6 +7,7 @@ const junoDatapointSchema = new mongoose.Schema({
   questionText: { type: String, required: true },
   options: [String],
   specificParsingRules: String,
+  branchingRule: String, // Store as JSON string, will be parsed when used
 }, { 
   timestamps: true,
   collection: 'junoDatapoints'

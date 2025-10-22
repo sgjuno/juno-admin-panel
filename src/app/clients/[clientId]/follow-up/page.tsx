@@ -44,15 +44,22 @@ export default function FollowUpPage({ params }: { params: Promise<{ clientId: s
     fetchClient();
   }, [clientId]);
 
-  function handleSave() {
+  async function handleSave() {
     setSaving(true);
     setError('');
     setSuccess('');
-    // TODO: API call to save config
-    setTimeout(() => {
-      setSaving(false);
+    try {
+      const res = await fetch(`/api/clients/${clientId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ followUpConfig }),
+      });
+      if (!res.ok) throw new Error('Failed to save');
       setSuccess('Saved successfully!');
-    }, 1000);
+    } catch (e) {
+      setError('Failed to save');
+    }
+    setSaving(false);
   }
 
   if (loading) {

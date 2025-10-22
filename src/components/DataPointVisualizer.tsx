@@ -8,13 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
-import { ZoomIn, ZoomOut, Search, Info, ExternalLink, CheckCircle, AlertCircle } from 'lucide-react';
+import { ZoomIn, ZoomOut, Search, Info, ExternalLink, CheckCircle, AlertCircle, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Pencil } from 'lucide-react';
 import { DataPointEditDialog } from './required-details/DataPointEditDialog';
 import { Slider } from '@/components/ui/slider';
+import { NewDataPointDialog } from './required-details/NewDataPointDialog';
 
 interface DetailRequired {
   datapoint: string;
@@ -102,11 +103,10 @@ function OptionsConfigurator({
   onChange: (value: any) => void,
   dataPoints: string[]
 }) {
-  const [configType, setConfigType] = useState<'simple' | 'mapping' | 'numeric' | 'complex'>(
+  const [configType, setConfigType] = useState<'simple' | 'mapping' | 'numeric'>(
     Array.isArray(value) ? 'simple' : 
     typeof value === 'object' && Object.values(value).some(v => Array.isArray(v)) ? 'mapping' :
-    typeof value === 'object' && Object.keys(value).every(k => !isNaN(Number(k))) ? 'numeric' :
-    'complex'
+    'numeric'
   );
 
   const [simpleOptions, setSimpleOptions] = useState<string[]>(Array.isArray(value) ? value : []);
@@ -114,9 +114,6 @@ function OptionsConfigurator({
     typeof value === 'object' && !Array.isArray(value) ? value : {}
   );
   const [numericOptions, setNumericOptions] = useState<{ [key: string]: string[] }>(
-    typeof value === 'object' && !Array.isArray(value) ? value : {}
-  );
-  const [complexOptions, setComplexOptions] = useState<{ [key: string]: string }>(
     typeof value === 'object' && !Array.isArray(value) ? value : {}
   );
 
@@ -139,19 +136,69 @@ const DataPointNode = ({ detail, category, onNodeClick, isHighlighted, nodeRef, 
     setError(null);
     setSuccess(false);
     try {
-      // Fetch latest detailsRequired
-      const resGet = await fetch(`/api/clients/${clientId}`);
+      // Fetch latest detailsRequired in array format
+      const resGet = await fetch(`/api/clients/${clientId}/config`);
       const clientData = await resGet.json();
       if (!resGet.ok || !clientData.detailsRequired) throw new Error('Failed to fetch client data');
       // Find and update the relevant data point
-      const updatedDetailsRequired = clientData.detailsRequired.map((cat: any) => ({
+      let updatedDetailsRequired = clientData.detailsRequired.map((cat: any) => ({
         ...cat,
         detailRequired: cat.detailRequired.map((d: any) =>
           d.id === detail.id ? { ...d, ...updatedDetail } : d
         )
       }));
+
+      // --- Update prev for all target data points referenced in options ---
+      const currentId = updatedDetail.id || detail.id;
+      const options = updatedDetail.options || {};
+      const targetIds = new Set<string>();
+      
+      // Collect all data points referenced in the new options
+      Object.values(options).forEach((val: any) => {
+        if (Array.isArray(val)) {
+          val.forEach((v) => v && targetIds.add(v));
+        } else if (typeof val === 'string' && val) {
+          targetIds.add(val);
+        }
+      });
+
+      // Get the old options to find previously referenced data points
+      const oldOptions = detail.options || {};
+      const oldTargetIds = new Set<string>();
+      Object.values(oldOptions).forEach((val: any) => {
+        if (Array.isArray(val)) {
+          val.forEach((v) => v && oldTargetIds.add(v));
+        } else if (typeof val === 'string' && val) {
+          oldTargetIds.add(val);
+        }
+      });
+
+      // Find data points that were previously referenced but are no longer referenced
+      const removedTargetIds = new Set([...oldTargetIds].filter(id => !targetIds.has(id)));
+
+      // Clean up prev field for data points that are no longer referenced
+      if (removedTargetIds.size > 0) {
+        updatedDetailsRequired = updatedDetailsRequired.map((cat: any) => ({
+          ...cat,
+          detailRequired: cat.detailRequired.map((d: any) =>
+            removedTargetIds.has(d.id) && d.prev === currentId ? { ...d, prev: null } : d
+          )
+        }));
+      }
+
+      // Set prev field for newly referenced data points
+      if (targetIds.size > 0) {
+        updatedDetailsRequired = updatedDetailsRequired.map((cat: any) => ({
+          ...cat,
+          detailRequired: cat.detailRequired.map((d: any) =>
+            targetIds.has(d.id) ? { ...d, prev: currentId } : d
+          )
+        }));
+      }
+      // --- End update prev ---
+
       // PUT the updated array
-      const resPut = await fetch(`/api/clients/${clientId}`, {
+      const resPut = await fetch(`/api/clients/${clientId}/config`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ detailsRequired: updatedDetailsRequired }),
@@ -194,9 +241,23 @@ const DataPointNode = ({ detail, category, onNodeClick, isHighlighted, nodeRef, 
       </Button>
       <div className="space-y-2">
         <div>
-          <h3 className="font-semibold text-sm truncate">{detail.id}</h3>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="block truncate max-w-[180px] font-semibold">{detail.id}</span>
+              </TooltipTrigger>
+              <TooltipContent>{detail.id}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           {detail.datapoint && (
-            <div className="text-xs text-muted-foreground truncate">{detail.datapoint}</div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="text-xs text-muted-foreground truncate max-w-[180px]">{detail.datapoint}</div>
+                </TooltipTrigger>
+                <TooltipContent>{detail.datapoint}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
           <div className="flex items-center gap-2 flex-nowrap mt-1">
             {detail.extract_only && (
@@ -233,7 +294,14 @@ const DataPointNode = ({ detail, category, onNodeClick, isHighlighted, nodeRef, 
         </div>
         
         {detail.questionText && (
-          <p className="text-xs text-muted-foreground">{detail.questionText}</p>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p className="text-xs text-muted-foreground truncate max-w-[180px]">{detail.questionText}</p>
+              </TooltipTrigger>
+              <TooltipContent>{detail.questionText}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
 
         <div className="flex flex-wrap gap-1">
@@ -275,9 +343,10 @@ interface CategoryColumnProps {
   nodeRefs: React.MutableRefObject<Record<string, React.RefObject<HTMLDivElement>>>;
   clientId: string;
   refreshData: () => void;
+  allDataPoints: string[];
 }
 
-const CategoryColumn = ({ category, details, onNodeClick, highlightedNode, nodeRefs, clientId, refreshData }: CategoryColumnProps) => {
+const CategoryColumn = ({ category, details, onNodeClick, highlightedNode, nodeRefs, clientId, refreshData, allDataPoints }: CategoryColumnProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
   return (
     <div className="flex flex-col min-w-[300px]">
@@ -286,7 +355,14 @@ const CategoryColumn = ({ category, details, onNodeClick, highlightedNode, nodeR
         onClick={() => setIsExpanded(!isExpanded)}
         style={{ backgroundColor: `${CATEGORY_COLORS[category.category as keyof typeof CATEGORY_COLORS]}20` }}
       >
-        <h2 className="font-semibold">{category.category}</h2>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <h2 className="font-semibold truncate max-w-[180px]">{category.category}</h2>
+            </TooltipTrigger>
+            <TooltipContent>{category.category}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <Button variant="ghost" size="sm">
           {isExpanded ? '−' : '+'}
         </Button>
@@ -313,7 +389,7 @@ const CategoryColumn = ({ category, details, onNodeClick, highlightedNode, nodeR
                   nodeRef={nodeRefs.current[detail.id]}
                   clientId={clientId}
                   refreshData={refreshData}
-                  dataPoints={details.map(d => d.id)}
+                  dataPoints={allDataPoints}
                 />
               );
             })}
@@ -341,6 +417,7 @@ export default function DataPointVisualizer({ detailsRequired, clientId }: DataP
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [scrollPosition, setScrollPosition] = useState({ x: 0, y: 0 });
+  const [newDataPointOpen, setNewDataPointOpen] = useState(false);
 
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2));
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.2));
@@ -367,6 +444,73 @@ export default function DataPointVisualizer({ detailsRequired, clientId }: DataP
       )
     })).filter(category => category.detailRequired.length > 0);
   }, [detailsRequired, searchTerm]);
+
+  // Compute all data points from all categories for the edit dialog
+  const allDataPoints = useMemo(() => {
+    return detailsRequired.flatMap(category => 
+      category.detailRequired.map(detail => detail.id)
+    );
+  }, [detailsRequired]);
+
+  // Get unique categories
+  const categories = useMemo(() => {
+    return detailsRequired.map(category => category.category);
+  }, [detailsRequired]);
+
+  // Handle creating new data point
+  const handleCreateNewDataPoint = async (newDataPoint: any) => {
+    try {
+      // Fetch latest detailsRequired in array format
+      const resGet = await fetch(`/api/clients/${clientId}/config`);
+      const clientData = await resGet.json();
+      if (!resGet.ok || !clientData.detailsRequired) throw new Error('Failed to fetch client data');
+      
+      // Find the category and add the new data point
+      let updatedDetailsRequired = clientData.detailsRequired.map((cat: any) => {
+        if (cat.category === newDataPoint.category) {
+          return {
+            ...cat,
+            detailRequired: [...cat.detailRequired, newDataPoint]
+          };
+        }
+        return cat;
+      });
+
+      // --- Update prev for all target data points referenced in options ---
+      const currentId = newDataPoint.id;
+      const options = newDataPoint.options || {};
+      const targetIds = new Set<string>();
+      Object.values(options).forEach((val: any) => {
+        if (Array.isArray(val)) {
+          val.forEach((v) => v && targetIds.add(v));
+        } else if (typeof val === 'string' && val) {
+          targetIds.add(val);
+        }
+      });
+      if (targetIds.size > 0) {
+        updatedDetailsRequired = updatedDetailsRequired.map((cat: any) => ({
+          ...cat,
+          detailRequired: cat.detailRequired.map((d: any) =>
+            targetIds.has(d.id) ? { ...d, prev: currentId } : d
+          )
+        }));
+      }
+      // --- End update prev ---
+      
+      // PUT the updated array
+      const resPut = await fetch(`/api/clients/${clientId}/config`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ detailsRequired: updatedDetailsRequired }),
+      });
+      if (!resPut.ok) throw new Error('Failed to create data point');
+      
+      // Refresh the data
+      window.location.reload();
+    } catch (error: any) {
+      throw new Error(error.message || 'Error creating data point');
+    }
+  };
 
   // Build a flat map of all nodes by id
   const allNodes: { [id: string]: DetailRequired & { category: string } } = useMemo(() => {
@@ -683,6 +827,13 @@ export default function DataPointVisualizer({ detailsRequired, clientId }: DataP
             onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-sm"
           />
+          <Button 
+            onClick={() => setNewDataPointOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            New Data Point
+          </Button>
         </div>
         {/* Line toggles */}
         <div className="flex items-center gap-4">
@@ -760,6 +911,7 @@ export default function DataPointVisualizer({ detailsRequired, clientId }: DataP
                 nodeRefs={nodeRefs}
                 clientId={clientId}
                 refreshData={refreshData}
+                allDataPoints={allDataPoints}
               />
             ))}
           </div>
@@ -816,6 +968,15 @@ export default function DataPointVisualizer({ detailsRequired, clientId }: DataP
           </Card>
         )}
       </div>
+
+      {/* New Data Point Dialog */}
+      <NewDataPointDialog
+        open={newDataPointOpen}
+        onOpenChange={setNewDataPointOpen}
+        clientId={clientId}
+        onSave={handleCreateNewDataPoint}
+        existingDataPoints={allDataPoints}
+      />
     </div>
   );
 } 

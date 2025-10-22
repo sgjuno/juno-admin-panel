@@ -1,5 +1,6 @@
 import ClientBasicInfoPageClient from './ClientBasicInfoPageClient';
 
-export default function ClientBasicInfoPage({ params }: any) {
-  return <ClientBasicInfoPageClient clientId={params.clientId} />;
+export default async function ClientBasicInfoPage({ params }: { params: Promise<{ clientId: string }> }) {
+  const { clientId } = await params;
+  return <ClientBasicInfoPageClient clientId={clientId} />;
 } 

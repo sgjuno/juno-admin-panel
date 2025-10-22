@@ -4,7 +4,7 @@ import React, { use } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { ArrowLeft, Settings, FileText, ListChecks, Link2, Mail, ListPlus, MessageSquare, Clock, AlertTriangle, GitBranch, Home } from 'lucide-react';
+import { ArrowLeft, Settings, FileText, ListChecks, Link2, Mail, ListPlus, MessageSquare, Clock, AlertTriangle, GitBranch, Home, TestTube } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const sections = [
@@ -16,6 +16,7 @@ const sections = [
   { name: 'Documents', path: 'documents', icon: FileText },
   { name: 'CRM Integration', path: 'crm', icon: Link2 },
   { name: 'Email Configuration', path: 'email', icon: Mail },
+  { name: 'Email Testing', path: 'email-testing', icon: TestTube },
   { name: 'Custom Fields', path: 'custom-fields', icon: ListPlus },
   { name: 'Response Prompts', path: 'response-prompts', icon: MessageSquare },
   { name: 'Follow-up Settings', path: 'follow-up', icon: Clock },

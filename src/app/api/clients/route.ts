@@ -23,6 +23,11 @@ export async function POST(request: Request) {
     
     // Set onboardedAt to current timestamp
     data.onboardedAt = Date.now();
+
+    // Auto-generate a unique placeholder for enquireEmail if missing/null/empty
+    if (!data.enquireEmail) {
+      data.enquireEmail = `placeholder-${Date.now()}@noemail.com`;
+    }
     
     const client = await Client.create(data);
     return NextResponse.json(client, { status: 201 });

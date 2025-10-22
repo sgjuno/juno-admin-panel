@@ -11,6 +11,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Pencil, Trash2, Save } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { OptionsConfigurator } from '@/components/required-details/OptionsConfigurator';
+import { BranchingRuleConfigurator } from '@/components/required-details/BranchingRuleConfigurator';
+import { DataPointEditDialog } from '@/components/required-details/DataPointEditDialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Textarea } from "@/components/ui/textarea";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface JunoDatapoint {
   _id?: string;
@@ -20,6 +26,7 @@ interface JunoDatapoint {
   questionText: string;
   options?: string[];
   specificParsingRules?: string;
+  branchingRule?: string;
 }
 
 const emptyDatapoint: JunoDatapoint = {
@@ -29,6 +36,7 @@ const emptyDatapoint: JunoDatapoint = {
   questionText: "",
   options: [],
   specificParsingRules: "",
+  branchingRule: "",
 };
 
 export default function JunoDatapointsPage() {
@@ -192,31 +200,29 @@ export default function JunoDatapointsPage() {
         </div>
         <div className="w-48">
           <Label htmlFor="category">Category</Label>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger id="category">
-              <SelectValue placeholder="All Categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">All Categories</SelectItem>
-              {categories.map(cat => (
-                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={categoryFilter}
+            onValueChange={setCategoryFilter}
+            options={[
+              { value: "__all__", label: "All Categories" },
+              ...categories.map(cat => ({ value: cat, label: cat }))
+            ]}
+            placeholder="All Categories"
+            searchPlaceholder="Search categories..."
+          />
         </div>
         <div className="w-48">
           <Label htmlFor="type">Type</Label>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger id="type">
-              <SelectValue placeholder="All Types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">All Types</SelectItem>
-              {types.map(type => (
-                <SelectItem key={type} value={type}>{type}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={typeFilter}
+            onValueChange={setTypeFilter}
+            options={[
+              { value: "__all__", label: "All Types" },
+              ...types.map(type => ({ value: type, label: type }))
+            ]}
+            placeholder="All Types"
+            searchPlaceholder="Search types..."
+          />
         </div>
       </div>
       {success && (
@@ -256,12 +262,55 @@ export default function JunoDatapointsPage() {
                 <TableBody>
                   {filteredDatapoints.map((dp) => (
                     <TableRow key={dp._id || dp.id}>
-                      <TableCell>{dp.id}</TableCell>
-                      <TableCell>{dp.category}</TableCell>
-                      <TableCell>{dp.type}</TableCell>
-                      <TableCell>{dp.questionText}</TableCell>
-                      <TableCell>
-                        {dp.options && dp.options.length > 0 ? dp.options.join(", ") : "-"}
+                      <TableCell className="max-w-[120px] truncate">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="block truncate">{dp.id}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>{dp.id}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </TableCell>
+                      <TableCell className="max-w-[120px] truncate">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="block truncate">{dp.category}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>{dp.category}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </TableCell>
+                      <TableCell className="max-w-[100px] truncate">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="block truncate">{dp.type}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>{dp.type}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </TableCell>
+                      <TableCell className="max-w-[220px] truncate">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="block truncate">{dp.questionText}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>{dp.questionText}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </TableCell>
+                      <TableCell className="max-w-[180px] truncate">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="block truncate">{dp.options && dp.options.length > 0 ? dp.options.join(", ") : "-"}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>{dp.options && dp.options.length > 0 ? dp.options.join(", ") : "-"}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
@@ -282,109 +331,105 @@ export default function JunoDatapointsPage() {
         </CardContent>
       </Card>
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl w-full">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit Datapoint" : "Add Datapoint"}</DialogTitle>
+            <DialogTitle>{editing ? 'Edit Datapoint' : 'Add Datapoint'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>ID</Label>
-              <Input value={form.id} onChange={e => handleFormChange("id", e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Category</Label>
-              <Select 
-                value={form.category} 
-                onValueChange={(value) => {
-                  if (value === "others") {
-                    setShowCustomCategory(true);
-                    handleFormChange("category", "");
-                  } else {
-                    setShowCustomCategory(false);
-                    handleFormChange("category", value);
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                  <SelectItem value="others">Others</SelectItem>
-                </SelectContent>
-              </Select>
-              {showCustomCategory && (
-                <Input 
-                  value={form.category} 
-                  onChange={e => handleFormChange("category", e.target.value)}
-                  placeholder="Enter custom category"
-                  className="mt-2"
+          <div className="overflow-y-auto max-h-[70vh] p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+              <div>
+                <Label className="block text-xs font-medium mb-1">ID *</Label>
+                <Input
+                  className="w-full"
+                  value={form.id}
+                  onChange={e => handleFormChange('id', e.target.value)}
+                  placeholder="Enter unique ID"
+                  disabled={!!editing}
                 />
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Type</Label>
-              <Select 
-                value={form.type} 
-                onValueChange={(value) => {
-                  if (value === "others") {
-                    setShowCustomType(true);
-                    handleFormChange("type", "");
-                  } else {
-                    setShowCustomType(false);
-                    handleFormChange("type", value);
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {types.map(type => (
-                    <SelectItem key={type} value={type}>{type}</SelectItem>
-                  ))}
-                  <SelectItem value="others">Others</SelectItem>
-                </SelectContent>
-              </Select>
-              {showCustomType && (
-                <Input 
-                  value={form.type} 
-                  onChange={e => handleFormChange("type", e.target.value)}
-                  placeholder="Enter custom type"
-                  className="mt-2"
+              </div>
+              <div>
+                <Label className="block text-xs font-medium mb-1">Type *</Label>
+                <SearchableSelect
+                  value={form.type}
+                  onValueChange={v => handleFormChange('type', v)}
+                  options={[
+                    ...types.map(type => ({ value: type, label: type })),
+                    { value: 'other', label: 'Other' }
+                  ]}
+                  placeholder="Select type"
+                  searchPlaceholder="Search types..."
+                  allowCustom={true}
+                  onCustomValueChange={v => handleFormChange('type', v)}
                 />
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Question Text</Label>
-              <Input value={form.questionText} onChange={e => handleFormChange("questionText", e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Options</Label>
-              {(form.options || []).map((opt, idx) => (
-                <div key={idx} className="flex gap-2 items-center">
-                  <Input value={opt} onChange={e => handleOptionsChange(idx, e.target.value)} className="w-64" />
-                  <Button size="icon" variant="ghost" onClick={() => handleRemoveOption(idx)} aria-label="Remove option">
-                    <Trash2 className="w-4 h-4 text-destructive" />
+              </div>
+              <div>
+                <Label className="block text-xs font-medium mb-1">Category *</Label>
+                <SearchableSelect
+                  value={form.category}
+                  onValueChange={v => handleFormChange('category', v)}
+                  options={[
+                    ...categories.map(cat => ({ value: cat, label: cat })),
+                    { value: 'other', label: 'Other' }
+                  ]}
+                  placeholder="Select category"
+                  searchPlaceholder="Search categories..."
+                  allowCustom={true}
+                  onCustomValueChange={v => handleFormChange('category', v)}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label className="block text-xs font-medium mb-1">Question Text *</Label>
+                <Textarea
+                  className="w-full"
+                  value={form.questionText}
+                  onChange={e => handleFormChange('questionText', e.target.value)}
+                  placeholder="Enter question text"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label className="block text-xs font-medium mb-1">Specific Parsing Rules</Label>
+                <Textarea
+                  className="w-full"
+                  value={form.specificParsingRules || ''}
+                  onChange={e => handleFormChange('specificParsingRules', e.target.value)}
+                  placeholder="Describe any special parsing logic for this datapoint"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label className="block text-xs font-medium mb-1">Options</Label>
+                <div className="space-y-2">
+                  {(form.options || []).map((option, idx) => (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <Input
+                        className="flex-1"
+                        value={option}
+                        onChange={e => handleOptionsChange(idx, e.target.value)}
+                        placeholder={`Option ${idx + 1}`}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveOption(idx)}
+                        aria-label="Remove option"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button type="button" variant="outline" className="w-full" onClick={handleAddOption}>
+                    <Plus className="w-4 h-4 mr-2" /> Add Option
                   </Button>
                 </div>
-              ))}
-              <Button type="button" variant="outline" size="sm" onClick={handleAddOption} className="gap-2 mt-2">
-                <Plus className="w-4 h-4" /> Add Option
-              </Button>
-            </div>
-            <div className="space-y-2">
-              <Label>Specific Parsing Rules</Label>
-              <Input value={form.specificParsingRules} onChange={e => handleFormChange("specificParsingRules", e.target.value)} />
+              </div>
             </div>
           </div>
-          <DialogFooter className="mt-4">
-            <Button onClick={handleSave} disabled={saving} className="gap-2">
-              <Save className="w-4 h-4" /> {saving ? "Saving..." : "Save"}
+          {error && <div className="text-red-500 text-xs mt-2 px-4">{error}</div>}
+          <DialogFooter className="px-4 pb-4">
+            <Button type="button" variant="secondary" onClick={closeDialog} disabled={saving}>Cancel</Button>
+            <Button type="button" onClick={handleSave} disabled={saving || !form.id || !form.type || !form.category || !form.questionText}>
+              {saving ? 'Saving...' : (editing ? 'Save Changes' : 'Add Datapoint')}
             </Button>
-            <Button variant="outline" onClick={closeDialog} type="button">Cancel</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

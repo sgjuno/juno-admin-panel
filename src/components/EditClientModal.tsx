@@ -8,23 +8,24 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Client } from '@/types/Client';
 
 interface EditClientModalProps {
   isOpen: boolean;
   onClose: () => void;
-  client: any | null;
+  client: Client | null;
   onEdit: (clientData: any) => Promise<boolean>;
   error?: string | null;
 }
 
 export default function EditClientModal({ isOpen, onClose, client, onEdit, error }: EditClientModalProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Client>({
     pocName: '',
     pocContact: '',
     type: 'BROKER',
     website: '',
     companyName: '',
-    companyNumber: '',
+    companyNumber: 0,
     address: '',
     country: '',
     isActive: true,
@@ -33,6 +34,7 @@ export default function EditClientModal({ isOpen, onClose, client, onEdit, error
     smeFinanceDomain: false,
     clientCode: '',
     emailDomain: '',
+    onboardedAt: undefined,
   });
   const [errors, setErrors] = useState<any>({});
   const [loading, setLoading] = useState(false);
@@ -42,10 +44,10 @@ export default function EditClientModal({ isOpen, onClose, client, onEdit, error
       setFormData({
         pocName: client.pocName || '',
         pocContact: client.pocContact || '',
-        type: client.type || 'BROKER',
+        type: client.type === 'LENDER' ? 'LENDER' : 'BROKER',
         website: client.website || '',
         companyName: client.companyName || '',
-        companyNumber: client.companyNumber || '',
+        companyNumber: client.companyNumber || 0,
         address: client.address || '',
         country: client.country || '',
         isActive: typeof client.isActive === 'boolean' ? client.isActive : true,
@@ -54,6 +56,7 @@ export default function EditClientModal({ isOpen, onClose, client, onEdit, error
         smeFinanceDomain: typeof client.smeFinanceDomain === 'boolean' ? client.smeFinanceDomain : false,
         clientCode: client.clientCode || '',
         emailDomain: client.emailDomain || '',
+        onboardedAt: client.onboardedAt,
       });
     }
   }, [client]);
@@ -145,7 +148,7 @@ export default function EditClientModal({ isOpen, onClose, client, onEdit, error
                     </div>
                     <div>
                       <Label htmlFor="type">Type</Label>
-                      <Select value={formData.type} onValueChange={val => setFormData(prev => ({ ...prev, type: val }))}>
+                      <Select value={formData.type} onValueChange={val => setFormData(prev => ({ ...prev, type: val === 'LENDER' ? 'LENDER' : 'BROKER' }))}>
                         <SelectTrigger id="type">
                           <SelectValue placeholder="Select type" />
                         </SelectTrigger>
