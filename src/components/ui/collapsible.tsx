@@ -43,10 +43,11 @@ const Collapsible: React.FC<CollapsibleProps> = ({
       {React.Children.map(children, child => {
         if (React.isValidElement(child)) {
           if (child.type === CollapsibleTrigger) {
-            return React.cloneElement(child as React.ReactElement<any>, {
+            const childElement = child as React.ReactElement<CollapsibleTriggerProps>;
+            return React.cloneElement(childElement, {
               onClick: () => {
-                handleToggle()
-                child.props.onClick?.()
+                handleToggle();
+                childElement.props.onClick?.();
               }
             })
           }

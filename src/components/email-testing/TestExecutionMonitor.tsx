@@ -474,7 +474,7 @@ export function TestExecutionMonitor({
                 <Button
                   onClick={startExecution}
                   disabled={loading || executionOptions.selectedTestCases.length === 0 ||
-                    (activeQueue && activeQueue.status === 'running')}
+                    (activeQueue?.status === 'running')}
                   className="flex items-center gap-2"
                 >
                   {loading ? (

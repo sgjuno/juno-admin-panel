@@ -127,7 +127,7 @@ export class GmailOAuthService {
 
       return {
         success: true,
-        messageId: response.data.id,
+        messageId: response.data.id || undefined,
         deliveryTime,
       };
     } catch (error) {

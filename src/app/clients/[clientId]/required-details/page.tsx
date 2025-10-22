@@ -815,7 +815,7 @@ export default function RequiredDetailsPage({ params }: { params: Promise<{ clie
       const cleanedDetails = cleanupDeletedDataPoint(detailsRequired, dataPointId);
       
       // Then remove the data point from the array
-      const updatedDetails = cleanedDetails.map((cat, i) => 
+      const updatedDetails = cleanedDetails.map((cat: Category, i: number) => 
         i === categoryIndex 
           ? { ...cat, detailRequired: cat.detailRequired.filter((_, j) => j !== detailIndex) }
           : cat

@@ -114,7 +114,7 @@ export default function AddClientModal({ isOpen, onClose, onAdd, existingClients
         pocContact: sourceClient.pocContact || '',
         website: sourceClient.website || '',
         companyName: sourceClient.companyName || '',
-        companyNumber: sourceClient.companyNumber || '',
+        companyNumber: sourceClient.companyNumber || 0,
         address: sourceClient.address || '',
         country: sourceClient.country || '',
         clientCode: sourceClient.clientCode || '',

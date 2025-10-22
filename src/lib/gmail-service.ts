@@ -88,7 +88,7 @@ export class GmailService {
 
       return {
         success: true,
-        messageId: response.data.id,
+        messageId: response.data.id || undefined,
         deliveryTime,
       };
     } catch (error) {
