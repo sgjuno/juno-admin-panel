@@ -15,6 +15,8 @@ import { OptionsConfigurator } from '@/components/required-details/OptionsConfig
 import { BranchingRuleConfigurator } from '@/components/required-details/BranchingRuleConfigurator';
 import { DataPointEditDialog } from '@/components/required-details/DataPointEditDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Textarea } from "@/components/ui/textarea";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface JunoDatapoint {
   _id?: string;
@@ -198,31 +200,29 @@ export default function JunoDatapointsPage() {
         </div>
         <div className="w-48">
           <Label htmlFor="category">Category</Label>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger id="category">
-              <SelectValue placeholder="All Categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">All Categories</SelectItem>
-              {categories.map(cat => (
-                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={categoryFilter}
+            onValueChange={setCategoryFilter}
+            options={[
+              { value: "__all__", label: "All Categories" },
+              ...categories.map(cat => ({ value: cat, label: cat }))
+            ]}
+            placeholder="All Categories"
+            searchPlaceholder="Search categories..."
+          />
         </div>
         <div className="w-48">
           <Label htmlFor="type">Type</Label>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger id="type">
-              <SelectValue placeholder="All Types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">All Types</SelectItem>
-              {types.map(type => (
-                <SelectItem key={type} value={type}>{type}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={typeFilter}
+            onValueChange={setTypeFilter}
+            options={[
+              { value: "__all__", label: "All Types" },
+              ...types.map(type => ({ value: type, label: type }))
+            ]}
+            placeholder="All Types"
+            searchPlaceholder="Search types..."
+          />
         </div>
       </div>
       {success && (
@@ -330,35 +330,109 @@ export default function JunoDatapointsPage() {
           )}
         </CardContent>
       </Card>
-      <DataPointEditDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        detail={editing}
-        clientId={''} // Not needed for single datapoint edit
-        onSave={async (updatedDetail: any) => {
-          setSaving(true);
-          setError("");
-          setSuccess("");
-          try {
-            const method = editing ? "PUT" : "POST";
-            const url = editing ? `/api/juno-datapoints/${editing._id}` : "/api/juno-datapoints";
-            const res = await fetch(url, {
-              method,
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(updatedDetail),
-            });
-            if (!res.ok) throw new Error("Failed to save");
-            setSuccess(editing ? "Updated successfully!" : "Added successfully!");
-            setDialogOpen(false);
-            fetchDatapoints();
-          } catch (e) {
-            setError("Failed to save datapoint.");
-          }
-          setSaving(false);
-        }}
-        onCancel={closeDialog}
-        dataPoints={datapoints.map(dp => dp.id)}
-      />
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-2xl w-full">
+          <DialogHeader>
+            <DialogTitle>{editing ? 'Edit Datapoint' : 'Add Datapoint'}</DialogTitle>
+          </DialogHeader>
+          <div className="overflow-y-auto max-h-[70vh] p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+              <div>
+                <Label className="block text-xs font-medium mb-1">ID *</Label>
+                <Input
+                  className="w-full"
+                  value={form.id}
+                  onChange={e => handleFormChange('id', e.target.value)}
+                  placeholder="Enter unique ID"
+                  disabled={!!editing}
+                />
+              </div>
+              <div>
+                <Label className="block text-xs font-medium mb-1">Type *</Label>
+                <SearchableSelect
+                  value={form.type}
+                  onValueChange={v => handleFormChange('type', v)}
+                  options={[
+                    ...types.map(type => ({ value: type, label: type })),
+                    { value: 'other', label: 'Other' }
+                  ]}
+                  placeholder="Select type"
+                  searchPlaceholder="Search types..."
+                  allowCustom={true}
+                  onCustomValueChange={v => handleFormChange('type', v)}
+                />
+              </div>
+              <div>
+                <Label className="block text-xs font-medium mb-1">Category *</Label>
+                <SearchableSelect
+                  value={form.category}
+                  onValueChange={v => handleFormChange('category', v)}
+                  options={[
+                    ...categories.map(cat => ({ value: cat, label: cat })),
+                    { value: 'other', label: 'Other' }
+                  ]}
+                  placeholder="Select category"
+                  searchPlaceholder="Search categories..."
+                  allowCustom={true}
+                  onCustomValueChange={v => handleFormChange('category', v)}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label className="block text-xs font-medium mb-1">Question Text *</Label>
+                <Textarea
+                  className="w-full"
+                  value={form.questionText}
+                  onChange={e => handleFormChange('questionText', e.target.value)}
+                  placeholder="Enter question text"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label className="block text-xs font-medium mb-1">Specific Parsing Rules</Label>
+                <Textarea
+                  className="w-full"
+                  value={form.specificParsingRules || ''}
+                  onChange={e => handleFormChange('specificParsingRules', e.target.value)}
+                  placeholder="Describe any special parsing logic for this datapoint"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label className="block text-xs font-medium mb-1">Options</Label>
+                <div className="space-y-2">
+                  {(form.options || []).map((option, idx) => (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <Input
+                        className="flex-1"
+                        value={option}
+                        onChange={e => handleOptionsChange(idx, e.target.value)}
+                        placeholder={`Option ${idx + 1}`}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveOption(idx)}
+                        aria-label="Remove option"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button type="button" variant="outline" className="w-full" onClick={handleAddOption}>
+                    <Plus className="w-4 h-4 mr-2" /> Add Option
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+          {error && <div className="text-red-500 text-xs mt-2 px-4">{error}</div>}
+          <DialogFooter className="px-4 pb-4">
+            <Button type="button" variant="secondary" onClick={closeDialog} disabled={saving}>Cancel</Button>
+            <Button type="button" onClick={handleSave} disabled={saving || !form.id || !form.type || !form.category || !form.questionText}>
+              {saving ? 'Saving...' : (editing ? 'Save Changes' : 'Add Datapoint')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 
